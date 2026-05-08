@@ -96,21 +96,20 @@ class TransactionParserService
 
         // ── Create transaction ────────────────────────────────────────────
         $transaction = Transaction::create([
-            'user_id'             => $user->id,
-            'wallet_id'           => $wallet->id,
-            'target_wallet_id'    => $targetWallet?->id,
-            'category_id'         => $category?->id,
-            'type'                => $type,
-            'amount'              => $amount,
-            'description'         => $parsed['description'] ?? $message,
-            'merchant'            => $parsed['merchant'] ?? null,
-            'transaction_date'    => now(),
-            'source'              => 'whatsapp_text',
-            'ai_confidence'       => $parsed['confidence'] ?? null,
-            'ai_raw_response'     => json_encode($parsed),
-            'ai_parsed_data'      => $parsed,
-            'status'              => 'completed',
-            'whatsapp_message_id' => $messageId,
+            'user_id'          => $user->id,
+            'wallet_id'        => $wallet->id,
+            'target_wallet_id' => $targetWallet?->id,
+            'category_id'      => $category?->id,
+            'type'             => $type,
+            'amount'           => $amount,
+            'description'      => $parsed['description'] ?? $message,
+            'merchant'         => $parsed['merchant'] ?? null,
+            'transaction_date' => now(),
+            'source'           => 'telegram_text',
+            'ai_confidence'    => $parsed['confidence'] ?? null,
+            'ai_raw_response'  => json_encode($parsed),
+            'ai_parsed_data'   => $parsed,
+            'status'           => 'completed',
         ]);
 
         // ── Update wallet balances ────────────────────────────────────────

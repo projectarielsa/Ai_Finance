@@ -10,7 +10,7 @@ class ReceiptScan extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'transaction_id', 'whatsapp_message_id', 'image_path',
+        'user_id', 'transaction_id', 'message_id', 'image_path',
         'merchant_name', 'total_amount', 'receipt_date', 'items',
         'detected_category', 'detected_wallet', 'confidence_score',
         'ai_raw_response', 'status', 'error_message', 'needs_wallet_confirmation',

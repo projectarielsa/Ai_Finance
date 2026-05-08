@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\ApiCredentialController;
 use App\Http\Controllers\Admin\AppSettingController;
 use App\Http\Controllers\Admin\TelegramSettingController;
+use App\Http\Controllers\Admin\WhatsappGatewayController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;

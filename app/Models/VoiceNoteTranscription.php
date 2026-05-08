@@ -10,7 +10,7 @@ class VoiceNoteTranscription extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'transaction_id', 'whatsapp_message_id', 'audio_path',
+        'user_id', 'transaction_id', 'message_id', 'audio_path',
         'audio_format', 'duration_seconds', 'transcription',
         'transcription_provider', 'confidence_score', 'status', 'error_message',
     ];

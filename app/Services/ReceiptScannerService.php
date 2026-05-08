@@ -189,7 +189,7 @@ class ReceiptScannerService
             'merchant'         => $scanned['merchant_name'] ?? null,
             'attachment'       => $receiptScan->image_path,
             'transaction_date' => $receiptScan->receipt_date ?? now(),
-            'source'           => 'whatsapp_image', // covers both Telegram & WA image
+            'source'           => 'telegram_image', // covers both Telegram & WA image
             'ai_confidence'    => $scanned['confidence'] ?? null,
             'ai_raw_response'  => json_encode($scanned),
             'status'           => 'completed',
