@@ -20,9 +20,9 @@ class VoiceNoteTranscriptionService
     public function processVoiceNote(string $audioPath, User $user, ?int $whatsappMessageId = null): array
     {
         $transcriptionRecord = VoiceNoteTranscription::create([
-            'user_id'              => $user->id,
-            'whatsapp_message_id'  => $whatsappMessageId,
-            'audio_path'           => $audioPath,
+            'user_id'    => $user->id,
+            'message_id' => $whatsappMessageId, // works for both Telegram & WhatsApp
+            'audio_path' => $audioPath,
             'audio_format'         => pathinfo($audioPath, PATHINFO_EXTENSION),
             'status'               => 'pending',
         ]);

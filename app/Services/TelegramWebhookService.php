@@ -143,7 +143,12 @@ class TelegramWebhookService
         $photo  = end($message['photo']);
         $fileId = $photo['file_id'];
 
+        Log::info('TG handlePhoto: downloading file', ['file_id' => $fileId, 'user_id' => $user->id]);
+
         $path = $this->telegram->downloadFile($fileId, 'receipt_' . Str::uuid());
+
+        Log::info('TG handlePhoto: download result', ['path' => $path]);
+
         if (!$path) {
             $this->telegram->sendMessage($chatId, "❌ Gagal mengunduh gambar. Coba lagi.");
             return;
@@ -151,7 +156,22 @@ class TelegramWebhookService
 
         $msgRecord->update(['media_path' => $path]);
 
-        $result = $this->receiptScanner->processReceipt($path, $user, $msgRecord->id);
+        Log::info('TG handlePhoto: calling processReceipt', ['path' => $path]);
+
+        try {
+            $result = $this->receiptScanner->processReceipt($path, $user, null); // pass null to avoid FK issue
+        } catch (\Throwable $e) {
+            Log::error('TG handlePhoto: processReceipt exception', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            $this->telegram->sendMessage($chatId, "❌ Gagal memproses struk: " . $e->getMessage());
+            return;
+        }
+
+        Log::info('TG handlePhoto: processReceipt result', [
+            'success'      => $result['success'],
+            'needs_wallet' => $result['needs_wallet'] ?? false,
+            'has_scan'     => isset($result['receipt_scan']),
+            'message'      => substr($result['message'] ?? '', 0, 100),
+        ]);
 
         // If needs wallet confirmation → send inline keyboard with wallet choices
         if (!empty($result['needs_wallet']) && isset($result['receipt_scan'])) {

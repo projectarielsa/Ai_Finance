@@ -34,7 +34,7 @@ class ReceiptScannerService
         // Save receipt scan record
         $receiptScan = ReceiptScan::create([
             'user_id'                   => $user->id,
-            'whatsapp_message_id'       => $telegramMsgId, // reuse column for both platforms
+            'message_id'                => $telegramMsgId, // works for both Telegram & WhatsApp
             'image_path'                => $imagePath,
             'merchant_name'             => $scanned['merchant_name'] ?? null,
             'total_amount'              => $scanned['total_amount'] ?? null,
