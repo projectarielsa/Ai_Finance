@@ -14,92 +14,117 @@ class ReceiptScannerService
     public function __construct(protected GrokAIService $grokAI) {}
 
     /**
-     * Process a receipt image from WhatsApp.
+     * Process a receipt image from Telegram or WhatsApp.
+     * $telegramMsgId / $whatsappMsgId — pass whichever is available.
      */
-    public function processReceipt(string $imagePath, User $user, ?int $whatsappMessageId = null): array
+    public function processReceipt(string $imagePath, User $user, ?int $telegramMsgId = null): array
     {
-        // Read image and encode to base64
+        // Read image
         $imageContent = Storage::disk('public')->get($imagePath);
         if (!$imageContent) {
-            return ['success' => false, 'message' => 'Gambar tidak dapat dibaca'];
+            return ['success' => false, 'message' => '❌ Gambar tidak dapat dibaca. Coba kirim ulang.'];
         }
 
         $mimeType    = $this->detectMimeType($imagePath);
         $imageBase64 = base64_encode($imageContent);
 
-        // Call AI to scan receipt
+        // Call Vision AI
         $scanned = $this->grokAI->scanReceipt($imageBase64, $mimeType, $user);
 
-        // Create receipt scan record
+        // Save receipt scan record
         $receiptScan = ReceiptScan::create([
-            'user_id'               => $user->id,
-            'whatsapp_message_id'   => $whatsappMessageId,
-            'image_path'            => $imagePath,
-            'merchant_name'         => $scanned['merchant_name'] ?? null,
-            'total_amount'          => $scanned['total_amount'] ?? null,
-            'receipt_date'          => isset($scanned['receipt_date']) ? date('Y-m-d', strtotime($scanned['receipt_date'])) : now(),
-            'items'                 => $scanned['items'] ?? null,
-            'detected_category'     => $scanned['category'] ?? null,
-            'detected_wallet'       => $scanned['detected_wallet'] ?? null,
-            'confidence_score'      => $scanned['confidence'] ?? 0,
-            'ai_raw_response'       => json_encode($scanned),
-            'status'                => 'processed',
+            'user_id'                   => $user->id,
+            'whatsapp_message_id'       => $telegramMsgId, // reuse column for both platforms
+            'image_path'                => $imagePath,
+            'merchant_name'             => $scanned['merchant_name'] ?? null,
+            'total_amount'              => $scanned['total_amount'] ?? null,
+            'receipt_date'              => !empty($scanned['receipt_date'])
+                                            ? date('Y-m-d', strtotime($scanned['receipt_date']))
+                                            : now()->toDateString(),
+            'items'                     => $scanned['items'] ?? null,
+            'detected_category'         => $scanned['category'] ?? null,
+            'detected_wallet'           => $scanned['detected_wallet'] ?? null,
+            'confidence_score'          => $scanned['confidence'] ?? 0,
+            'ai_raw_response'           => json_encode($scanned),
+            'status'                    => 'processed',
             'needs_wallet_confirmation' => empty($scanned['detected_wallet']),
         ]);
 
+        // AI error or no amount detected
         if (!empty($scanned['error']) || empty($scanned['total_amount'])) {
-            $receiptScan->update(['status' => 'failed', 'error_message' => $scanned['error'] ?? 'Could not read receipt']);
-            return ['success' => false, 'message' => 'Struk tidak dapat dibaca dengan jelas. Pastikan foto jelas dan tidak buram.'];
-        }
-
-        // If wallet not detected, ask user
-        if (empty($scanned['detected_wallet'])) {
-            $amount = number_format($scanned['total_amount'], 0, ',', '.');
+            $receiptScan->update([
+                'status'        => 'failed',
+                'error_message' => $scanned['error'] ?? 'Jumlah tidak terdeteksi',
+            ]);
             return [
-                'success'       => false,
-                'needs_wallet'  => true,
-                'receipt_scan'  => $receiptScan,
-                'message'       => "Saya berhasil membaca total Rp{$amount} dari struk.\nWallet yang digunakan apa? Contoh: Cash, BRI, Gopay",
-                'amount'        => $scanned['total_amount'],
+                'success' => false,
+                'message' => "❌ Struk tidak dapat dibaca.\n\nPastikan:\n• Foto jelas & tidak buram\n• Angka total terlihat\n• Bukan foto screenshot",
             ];
         }
 
-        // Try to create transaction automatically
-        $wallets  = $user->wallets()->where('is_active', true)->get();
-        $wallet   = $this->findWallet($scanned['detected_wallet'], $wallets);
+        $amount   = (float) $scanned['total_amount'];
+        $amountFmt = number_format($amount, 0, ',', '.');
+        $merchant = $scanned['merchant_name'] ?? null;
+        $category = $scanned['category'] ?? 'Belanja';
 
-        if (!$wallet) {
-            $receiptScan->update(['needs_wallet_confirmation' => true]);
+        // Wallet not detected → ask user (return needs_wallet so Telegram can show keyboard)
+        if (empty($scanned['detected_wallet'])) {
+            $merchantText = $merchant ? "\nMerchant: *{$merchant}*" : '';
             return [
                 'success'      => false,
                 'needs_wallet' => true,
                 'receipt_scan' => $receiptScan,
-                'message'      => "Struk berhasil dibaca! Total: Rp" . number_format($scanned['total_amount'], 0, ',', '.') . "\nWallet yang digunakan apa?",
-                'amount'       => $scanned['total_amount'],
+                'amount'       => $amount,
+                'message'      => "📋 *Struk berhasil dibaca!*{$merchantText}\nTotal: Rp{$amountFmt}\nKategori: {$category}\n\n💳 *Pembayaran menggunakan wallet apa?*",
             ];
         }
 
+        // Try to match detected wallet
+        $wallets = $user->wallets()->where('is_active', true)->get();
+        $wallet  = $this->findWallet($scanned['detected_wallet'], $wallets);
+
+        if (!$wallet) {
+            $receiptScan->update(['needs_wallet_confirmation' => true]);
+            $merchantText = $merchant ? "\nMerchant: *{$merchant}*" : '';
+            return [
+                'success'      => false,
+                'needs_wallet' => true,
+                'receipt_scan' => $receiptScan,
+                'amount'       => $amount,
+                'message'      => "📋 *Struk berhasil dibaca!*{$merchantText}\nTotal: Rp{$amountFmt}\nKategori: {$category}\n\n💳 *Pembayaran menggunakan wallet apa?*",
+            ];
+        }
+
+        // Auto-create transaction
         $transaction = $this->createTransactionFromScan($scanned, $user, $wallet, $receiptScan);
 
         if (!$transaction) {
-            return ['success' => false, 'message' => 'Gagal menyimpan transaksi.'];
+            return [
+                'success' => false,
+                'message' => "⚠️ Saldo *{$wallet->name}* tidak cukup untuk transaksi Rp{$amountFmt}.",
+            ];
         }
 
-        $amount    = number_format($scanned['total_amount'], 0, ',', '.');
-        $merchant  = $scanned['merchant_name'] ?? 'Unknown';
-        $category  = $scanned['category'] ?? 'Belanja';
-        $date      = $receiptScan->receipt_date ? date('d M Y', strtotime($receiptScan->receipt_date)) : now()->format('d M Y');
+        $date = $receiptScan->receipt_date
+            ? date('d M Y', strtotime($receiptScan->receipt_date))
+            : now()->format('d M Y');
 
         return [
-            'success'     => true,
-            'transaction' => $transaction,
-            'receipt_scan'=> $receiptScan,
-            'message'     => "✅ Transaksi berhasil dicatat!\nMerchant: {$merchant}\nTotal: Rp{$amount}\nKategori: {$category}\nWallet: {$wallet->name}\nTanggal: {$date}",
+            'success'      => true,
+            'transaction'  => $transaction,
+            'receipt_scan' => $receiptScan,
+            'message'      => "✅ *Transaksi berhasil dicatat!*" .
+                              ($merchant ? "\nMerchant: {$merchant}" : '') .
+                              "\nTotal: Rp{$amountFmt}" .
+                              "\nKategori: {$category}" .
+                              "\nWallet: {$wallet->name}" .
+                              "\nTanggal: {$date}",
         ];
     }
 
     /**
-     * Confirm receipt with wallet (when AI couldn't detect wallet).
+     * Confirm wallet choice for a pending receipt scan.
+     * Called when user picks a wallet (inline keyboard or text reply).
      */
     public function confirmWallet(ReceiptScan $receiptScan, string $walletName, User $user): array
     {
@@ -107,35 +132,67 @@ class ReceiptScannerService
         $wallet  = $this->findWallet($walletName, $wallets);
 
         if (!$wallet) {
-            return ['success' => false, 'message' => "Wallet \"{$walletName}\" tidak ditemukan. Wallet Anda: " . $wallets->pluck('name')->join(', ')];
+            $list = $wallets->pluck('name')->join(', ');
+            return [
+                'success' => false,
+                'message' => "❌ Wallet *\"{$walletName}\"* tidak ditemukan.\n\nWallet Anda: {$list}",
+            ];
         }
 
-        $scanned     = json_decode($receiptScan->ai_raw_response, true);
+        $scanned     = json_decode($receiptScan->ai_raw_response, true) ?? [];
         $transaction = $this->createTransactionFromScan($scanned, $user, $wallet, $receiptScan);
 
-        $amount = number_format($receiptScan->total_amount, 0, ',', '.');
+        if (!$transaction) {
+            $amount = number_format($receiptScan->total_amount, 0, ',', '.');
+            return [
+                'success' => false,
+                'message' => "⚠️ Saldo *{$wallet->name}* tidak cukup untuk transaksi Rp{$amount}.",
+            ];
+        }
+
+        $amount   = number_format($receiptScan->total_amount, 0, ',', '.');
+        $merchant = $receiptScan->merchant_name;
+        $date     = $receiptScan->receipt_date
+            ? date('d M Y', strtotime($receiptScan->receipt_date))
+            : now()->format('d M Y');
+
         return [
             'success'     => true,
             'transaction' => $transaction,
-            'message'     => "✅ Transaksi dicatat!\nTotal: Rp{$amount}\nWallet: {$wallet->name}",
+            'message'     => "✅ *Transaksi berhasil dicatat!*" .
+                             ($merchant ? "\nMerchant: {$merchant}" : '') .
+                             "\nTotal: Rp{$amount}" .
+                             "\nWallet: {$wallet->name}" .
+                             "\nTanggal: {$date}",
         ];
     }
 
-    protected function createTransactionFromScan(array $scanned, User $user, Wallet $wallet, ReceiptScan $receiptScan): ?Transaction
-    {
-        $amount = (float)($scanned['total_amount'] ?? 0);
+    // ── Internal ──────────────────────────────────────────────────────────────
+
+    protected function createTransactionFromScan(
+        array $scanned,
+        User $user,
+        Wallet $wallet,
+        ReceiptScan $receiptScan
+    ): ?Transaction {
+        $amount = (float) ($scanned['total_amount'] ?? 0);
+
+        if ($amount <= 0) return null;
+
         if (!$wallet->hasSufficientBalance($amount)) {
             return null;
         }
 
-        $categories = Category::where(function($q) use ($user) {
+        // Find best-matching category
+        $categories = Category::where(function ($q) use ($user) {
             $q->whereNull('user_id')->orWhere('user_id', $user->id);
         })->where('is_active', true)->get();
 
-        $category = $categories->first(fn($c) =>
-            str_contains(strtolower($c->name), strtolower($scanned['category'] ?? '')) ||
-            str_contains(strtolower($scanned['category'] ?? ''), strtolower($c->name))
-        ) ?? $categories->where('type', 'expense')->first();
+        $catName  = strtolower($scanned['category'] ?? '');
+        $category = $categories->first(function ($c) use ($catName) {
+            return str_contains(strtolower($c->name), $catName) ||
+                   str_contains($catName, strtolower($c->name));
+        }) ?? $categories->where('type', 'expense')->first();
 
         $transaction = Transaction::create([
             'user_id'          => $user->id,
@@ -143,18 +200,21 @@ class ReceiptScannerService
             'category_id'      => $category?->id,
             'type'             => 'expense',
             'amount'           => $amount,
-            'description'      => 'Belanja di ' . ($scanned['merchant_name'] ?? 'unknown'),
+            'description'      => 'Belanja di ' . ($scanned['merchant_name'] ?? 'Unknown'),
             'merchant'         => $scanned['merchant_name'] ?? null,
             'attachment'       => $receiptScan->image_path,
             'transaction_date' => $receiptScan->receipt_date ?? now(),
-            'source'           => 'whatsapp_image',
+            'source'           => 'whatsapp_image', // covers both Telegram & WA image
             'ai_confidence'    => $scanned['confidence'] ?? null,
             'ai_raw_response'  => json_encode($scanned),
             'status'           => 'completed',
         ]);
 
         $wallet->debit($amount);
-        $receiptScan->update(['transaction_id' => $transaction->id, 'status' => 'confirmed']);
+        $receiptScan->update([
+            'transaction_id' => $transaction->id,
+            'status'         => 'confirmed',
+        ]);
 
         return $transaction;
     }
@@ -162,17 +222,31 @@ class ReceiptScannerService
     protected function findWallet(string $name, $wallets): ?Wallet
     {
         $name = strtolower(trim($name));
-        return $wallets->first(fn($w) =>
-            strtolower($w->name) === $name ||
-            str_contains(strtolower($w->name), $name) ||
-            str_contains($name, strtolower($w->name))
-        );
+        if (empty($name)) return null;
+
+        // Exact match
+        $w = $wallets->first(fn ($w) => strtolower($w->name) === $name);
+        if ($w) return $w;
+
+        // Provider match
+        $w = $wallets->first(fn ($w) => strtolower($w->provider ?? '') === $name);
+        if ($w) return $w;
+
+        // Alias match
+        foreach ($wallets as $w) {
+            if (in_array($name, array_map('strtolower', $w->ai_aliases ?? []))) return $w;
+        }
+
+        // Contains
+        $w = $wallets->first(fn ($w) => str_contains(strtolower($w->name), $name));
+        if ($w) return $w;
+
+        return $wallets->first(fn ($w) => str_contains($name, strtolower($w->name)));
     }
 
     protected function detectMimeType(string $path): string
     {
-        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        return match($ext) {
+        return match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
             'jpg', 'jpeg' => 'image/jpeg',
             'png'         => 'image/png',
             'gif'         => 'image/gif',

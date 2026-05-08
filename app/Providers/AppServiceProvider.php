@@ -11,6 +11,7 @@ use App\Services\TransactionParserService;
 use App\Services\VoiceNoteTranscriptionService;
 use App\Services\WhatsAppService;
 use App\Services\WhatsAppWebhookService;
+// Note: WhatsAppService kept for backward-compat webhook fallback
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 
@@ -25,8 +26,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(TransactionParserService::class, function ($app) {
             return new TransactionParserService(
-                $app->make(GrokAIService::class),
-                $app->make(WhatsAppService::class)
+                $app->make(GrokAIService::class)
             );
         });
 
