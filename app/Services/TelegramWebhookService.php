@@ -18,15 +18,17 @@ class TelegramWebhookService
     ) {}
 
     /**
-     * Process update — also auto-register telegram_id if user not linked yet.
-     */
-
-    /**
      * Main entry point — process Telegram update payload.
      */
     public function process(array $update): void
     {
         try {
+            // ── Handle callback_query (inline keyboard button clicks) ──────
+            if (isset($update['callback_query'])) {
+                $this->handleCallbackQuery($update['callback_query']);
+                return;
+            }
+
             $message = $update['message'] ?? $update['edited_message'] ?? null;
             if (!$message) return;
 
@@ -150,6 +152,13 @@ class TelegramWebhookService
         $msgRecord->update(['media_path' => $path]);
 
         $result = $this->receiptScanner->processReceipt($path, $user, $msgRecord->id);
+
+        // If needs wallet confirmation → send inline keyboard with wallet choices
+        if (!empty($result['needs_wallet']) && isset($result['receipt_scan'])) {
+            $this->sendWalletKeyboard($chatId, $user, $result['receipt_scan']->id, $result['message']);
+            return;
+        }
+
         $this->telegram->sendMessage($chatId, $result['message']);
 
         if ($result['success'] ?? false) {
@@ -379,6 +388,80 @@ class TelegramWebhookService
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Handle inline keyboard button clicks (callback_query).
+     */
+    protected function handleCallbackQuery(array $callbackQuery): void
+    {
+        $chatId   = $callbackQuery['message']['chat']['id'];
+        $msgId    = $callbackQuery['message']['message_id'];
+        $data     = $callbackQuery['data'] ?? '';
+        $fromId   = (string)($callbackQuery['from']['id'] ?? '');
+
+        // Answer callback to remove loading spinner
+        $this->telegram->answerCallbackQuery($callbackQuery['id']);
+
+        // Find user
+        $user = User::where('telegram_id', $fromId)->first();
+        if (!$user) {
+            $this->telegram->editMessageText($chatId, $msgId, "❌ Akun tidak ditemukan.");
+            return;
+        }
+
+        // Parse callback data: wallet_confirm:{receipt_scan_id}:{wallet_name}
+        if (str_starts_with($data, 'wallet_confirm:')) {
+            $parts       = explode(':', $data, 3);
+            $scanId      = $parts[1] ?? null;
+            $walletName  = $parts[2] ?? null;
+
+            if (!$scanId || !$walletName) return;
+
+            $receiptScan = \App\Models\ReceiptScan::find($scanId);
+            if (!$receiptScan || $receiptScan->user_id !== $user->id) {
+                $this->telegram->editMessageText($chatId, $msgId, "❌ Data struk tidak ditemukan.");
+                return;
+            }
+
+            // Process with chosen wallet
+            $result = $this->receiptScanner->confirmWallet($receiptScan, $walletName, $user);
+
+            // Edit original message to remove keyboard and show result
+            $this->telegram->editMessageText($chatId, $msgId, $result['message']);
+            return;
+        }
+    }
+
+    /**
+     * Send wallet selection as inline keyboard buttons.
+     */
+    protected function sendWalletKeyboard(int|string $chatId, User $user, int $receiptScanId, string $promptText): void
+    {
+        $wallets = $user->wallets()->where('is_active', true)->get();
+
+        // Build inline keyboard rows (2 per row)
+        $buttons = [];
+        $row     = [];
+        foreach ($wallets as $i => $wallet) {
+            $row[] = [
+                'text'          => $wallet->name,
+                'callback_data' => "wallet_confirm:{$receiptScanId}:{$wallet->name}",
+            ];
+            if (count($row) === 2) {
+                $buttons[] = $row;
+                $row = [];
+            }
+        }
+        if (!empty($row)) {
+            $buttons[] = $row;
+        }
+
+        $this->telegram->sendMessage($chatId, $promptText, [
+            'reply_markup' => json_encode([
+                'inline_keyboard' => $buttons,
+            ]),
+        ]);
+    }
 
     protected function detectType(array $message): string
     {

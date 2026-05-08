@@ -38,7 +38,12 @@ class AppSettingService
     public function getAiApiKey(): ?string
     {
         $cred = $this->getAiCredential();
-        return $cred?->key_value ?? config('services.groq.api_key');
+        if ($cred?->key_value) return $cred->key_value;
+
+        // Fallback: cek semua kemungkinan nama env variable
+        return config('services.groq.api_key')
+            ?? env('GROQ_API_KEY')
+            ?? env('GROK_API_KEY'); // backward compat
     }
 
     public function getAiModel(): string

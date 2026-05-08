@@ -141,6 +141,41 @@ class TelegramBotService
     }
 
     /**
+     * Answer a callback query — removes loading spinner on inline buttons.
+     */
+    public function answerCallbackQuery(string $callbackQueryId, string $text = ''): void
+    {
+        try {
+            Http::timeout(5)->post("{$this->baseUrl}/answerCallbackQuery", [
+                'callback_query_id' => $callbackQueryId,
+                'text'              => $text,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Telegram answerCallbackQuery error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Edit an existing message text (e.g. to remove inline keyboard after selection).
+     */
+    public function editMessageText(int|string $chatId, int $messageId, string $text): bool
+    {
+        try {
+            $response = Http::timeout(10)->post("{$this->baseUrl}/editMessageText", [
+                'chat_id'      => $chatId,
+                'message_id'   => $messageId,
+                'text'         => $text,
+                'parse_mode'   => 'Markdown',
+                'reply_markup' => json_encode(['inline_keyboard' => []]), // Remove keyboard
+            ]);
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::error('Telegram editMessageText error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Send a formatted financial report message.
      */
     public function sendReport(int|string $chatId, string $reportText): bool
