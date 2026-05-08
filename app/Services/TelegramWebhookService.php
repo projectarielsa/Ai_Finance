@@ -731,46 +731,60 @@ class TelegramWebhookService
     /**
      * Detect if text looks like a question/request rather than a transaction.
      * Check BEFORE trying to parse as transaction to avoid wasting AI tokens.
+     *
+     * PENTING: Jangan masukkan kata yang ada di konteks transaksi seperti:
+     * "tambah", "masuk", "keluar", "catat", "simpan", "bayar"
+     * karena itu semua adalah transaksi, bukan pertanyaan!
      */
     protected function looksLikeQuestion(string $text): bool
     {
         $lower = strtolower(trim($text));
 
-        // Explicit question keywords
-        $questionKeywords = [
-            // Rekap/laporan
-            'rekap', 'rekapan', 'rangkum', 'rangkuman', 'laporan', 'buatkan laporan',
-            'ringkasan', 'summary', 'resume',
-            // Pertanyaan umum
-            'berapa', 'gimana', 'bagaimana', 'kenapa', 'mengapa', 'kapan',
-            'dimana', 'di mana', 'siapa', 'apa saja', 'apa yang',
-            // Permintaan
-            'tolong', 'coba', 'bantu', 'buatkan', 'buatin', 'kasih tau',
-            'kasih lihat', 'tampilkan', 'lihatkan', 'ceritakan', 'jelaskan',
-            // Analisa
-            'analisa', 'analisis', 'evaluasi', 'review', 'cek', 'check',
-            'boros', 'hemat', 'irit', 'saran', 'rekomendasi', 'tips',
-            'gimana', 'bagusnya', 'sebaiknya',
-            // Waktu
-            'bulan ini', 'bulan lalu', 'minggu ini', 'tahun ini',
-            'kemarin', 'hari ini', 'januari', 'februari', 'maret', 'april',
-            'mei', 'juni', 'juli', 'agustus', 'september', 'oktober',
-            'november', 'desember',
-            // Statistik
-            'paling', 'terbesar', 'terkecil', 'terbanyak', 'total', 'jumlah',
-            'rata-rata', 'rata rata', 'perbandingan', 'trend',
-            // Informal
-            '?', 'dong', 'yuk', 'deh', 'kan', 'nih', 'sih', 'ya', 'yaa',
-        ];
+        // ── Cek tanda tanya eksplisit ─────────────────────────────────────
+        if (str_contains($lower, '?')) return true;
 
-        foreach ($questionKeywords as $kw) {
+        // ── BLACKLIST: jika mengandung kata-kata transaksi ini, BUKAN pertanyaan ──
+        // Kata-kata ini menandakan aksi pencatatan transaksi
+        $transactionIndicators = [
+            'beli', 'bayar', 'bayarin', 'transfer', 'tarik', 'setor', 'top up', 'topup',
+            'isi', 'beli', 'jajan', 'makan', 'minum', 'bensin', 'parkir',
+            'gaji', 'pemasukan', 'penghasilan', 'dapat uang', 'terima',
+            'keluar', 'pengeluaran', 'habis', 'abis',
+            'tambah', 'tambahkan', 'masukin', 'simpen', 'catat', 'input',
+            'masuk ke', 'masuk dari', 'ke wallet', 'ke krom', 'ke bri', 'ke bca',
+            'ke gopay', 'ke dana', 'ke ovo', 'ke cash',
+        ];
+        foreach ($transactionIndicators as $ti) {
+            if (str_contains($lower, $ti)) return false;
+        }
+
+        // ── WHITELIST: kata-kata yang jelas pertanyaan/analisa ─────────────
+        $definitelyQuestion = [
+            // Rekap/laporan eksplisit
+            'rekap', 'rekapan', 'rangkum', 'rangkuman', 'ringkasan', 'resume',
+            'laporan keuangan', 'laporan bulanan', 'laporan pengeluaran',
+            // Analisa
+            'analisa', 'analisis', 'evaluasi',
+            'boros', 'hemat', 'irit', 'saran keuangan', 'rekomendasi',
+            // Pertanyaan murni
+            'berapa total', 'berapa saldo', 'berapa pengeluaran', 'berapa pemasukan',
+            'gimana kondisi', 'bagaimana kondisi', 'bagaimana keuangan',
+            'paling boros', 'paling sering', 'terbesar', 'terbanyak',
+            'bulan lalu', 'bulan ini lebih', 'dibanding',
+            'trend', 'perbandingan', 'statistik',
+        ];
+        foreach ($definitelyQuestion as $kw) {
             if (str_contains($lower, $kw)) return true;
         }
 
-        // Jika teks lebih dari 5 kata dan tidak mengandung angka → kemungkinan pertanyaan
-        $words = explode(' ', $lower);
-        $hasNumber = preg_match('/\d/', $lower);
-        if (count($words) > 5 && !$hasNumber) return true;
+        // ── Kata tanya di awal kalimat ────────────────────────────────────
+        $startsWithQuestion = ['berapa', 'gimana', 'bagaimana', 'kenapa', 'mengapa',
+                               'kapan', 'dimana', 'di mana', 'siapa', 'apa saja',
+                               'apa yang', 'coba cerita', 'tolong analisa', 'tolong rekap',
+                               'tolong buatkan', 'buatkan rekap', 'buatkan laporan'];
+        foreach ($startsWithQuestion as $kw) {
+            if (str_starts_with($lower, $kw)) return true;
+        }
 
         return false;
     }
