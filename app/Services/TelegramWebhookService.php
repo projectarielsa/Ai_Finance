@@ -128,9 +128,15 @@ class TelegramWebhookService
             $reply = "⚠️ " . $result['message'];
         }
 
+        // If AI couldn't parse as transaction AND the text looks like a question → answer as AI
+        if (!$result['success'] && !($result['balance_error'] ?? false) && $this->looksLikeQuestion($text)) {
+            $context = $this->buildUserContext($user);
+            $reply   = $this->grokAI->answerFinancialQuestion($text, $user, $context);
+        }
+
         $this->telegram->sendMessage($chatId, $reply);
 
-        if ($result['success'] ?? false) {
+        if (($result['success'] ?? false) && isset($result['transaction'])) {
             $msgRecord->update(['transaction_id' => $result['transaction']?->id]);
         }
     }
@@ -346,8 +352,17 @@ class TelegramWebhookService
                 $msg  = "📊 *Laporan " . $now->translatedFormat('F Y') . "*\n";
                 $msg .= "✅ Pemasukan: Rp" . number_format($income, 0, ',', '.') . "\n";
                 $msg .= "❌ Pengeluaran: Rp" . number_format($expense, 0, ',', '.') . "\n";
-                $msg .= ($net >= 0 ? "📈" : "📉") . " Cashflow: Rp" . number_format($net, 0, ',', '.');
+                $msg .= ($net >= 0 ? "📈" : "📉") . " Cashflow: Rp" . number_format($net, 0, ',', '.') . "\n\n";
+                $msg .= "Untuk rekap lengkap, ketik /rekap";
                 $this->telegram->sendMessage($chatId, $msg);
+                break;
+
+            case '/rekap':
+                // Cek apakah ada parameter bulan: /rekap 3 2026 atau /rekap (default bulan ini)
+                $parts   = explode(' ', $command);
+                $reqMonth = isset($parts[1]) ? (int)$parts[1] : now()->month;
+                $reqYear  = isset($parts[2]) ? (int)$parts[2] : now()->year;
+                $this->sendMonthlyRecap($user, $chatId, $reqYear, $reqMonth);
                 break;
 
             case '/pengeluaran':
@@ -392,7 +407,9 @@ class TelegramWebhookService
                 $help .= "🎤 Voice note: Rekam ucapan transaksi\n\n";
                 $help .= "*Commands:*\n";
                 $help .= "/saldo — Lihat semua saldo wallet\n";
-                $help .= "/laporan — Laporan bulan ini\n";
+                $help .= "/laporan — Ringkasan bulan ini\n";
+                $help .= "/rekap — Rekapan lengkap bulan ini\n";
+                $help .= "/rekap 4 2026 — Rekap bulan April 2026\n";
                 $help .= "/topkategori — Top pengeluaran\n";
                 $help .= "/wallet — Daftar wallet\n";
                 $help .= "/link email — Hubungkan/ganti akun\n";
@@ -407,9 +424,9 @@ class TelegramWebhookService
                 break;
 
             default:
-                // Let AI answer as a financial question
+                // Let AI answer as a financial question with full context
                 $context = $this->buildUserContext($user);
-                $answer  = $this->grokAI->answerFinancialQuestion(ltrim($command, '/'), $user, $context);
+                $answer  = $this->grokAI->answerFinancialQuestion($command, $user, $context);
                 $this->telegram->sendMessage($chatId, $answer);
         }
     }
@@ -490,6 +507,141 @@ class TelegramWebhookService
         ]);
     }
 
+    /**
+     * Send a full monthly financial recap to the user.
+     */
+    protected function sendMonthlyRecap(User $user, int|string $chatId, int $year, int $month): void
+    {
+        // Validate
+        if ($month < 1 || $month > 12) {
+            $this->telegram->sendMessage($chatId, "⚠️ Format bulan salah.\nContoh: `/rekap 5 2026` untuk Mei 2026");
+            return;
+        }
+
+        $periodName = \Carbon\Carbon::createFromDate($year, $month, 1)->translatedFormat('F Y');
+
+        $this->telegram->sendMessage($chatId, "⏳ Membuat rekapan *{$periodName}*...");
+
+        $transactions = $user->transactions()
+            ->completed()
+            ->byMonth($year, $month)
+            ->with(['category', 'wallet'])
+            ->orderBy('transaction_date')
+            ->get();
+
+        if ($transactions->isEmpty()) {
+            $this->telegram->sendMessage($chatId, "📭 Tidak ada transaksi di bulan *{$periodName}*.");
+            return;
+        }
+
+        $income       = $transactions->where('type', 'income')->sum('amount');
+        $expense      = $transactions->where('type', 'expense')->sum('amount');
+        $transfer     = $transactions->where('type', 'transfer')->sum('amount');
+        $net          = $income - $expense;
+        $totalTx      = $transactions->count();
+
+        // ── Pesan 1: Ringkasan Utama ──────────────────────────────────────
+        $msg  = "📊 *REKAP KEUANGAN {$periodName}*\n";
+        $msg .= str_repeat("─", 30) . "\n\n";
+        $msg .= "💰 *Pemasukan:* Rp" . number_format($income, 0, ',', '.') . "\n";
+        $msg .= "💸 *Pengeluaran:* Rp" . number_format($expense, 0, ',', '.') . "\n";
+        if ($transfer > 0) {
+            $msg .= "🔄 *Transfer:* Rp" . number_format($transfer, 0, ',', '.') . "\n";
+        }
+        $msg .= "\n";
+        $msg .= ($net >= 0 ? "📈" : "📉") . " *Cashflow:* ";
+        $msg .= ($net >= 0 ? "+" : "") . "Rp" . number_format($net, 0, ',', '.') . "\n";
+        $msg .= "📝 *Total Transaksi:* {$totalTx}\n\n";
+
+        // Saldo wallet saat ini
+        $wallets = $user->wallets()->where('is_active', true)->where('include_in_total', true)->get();
+        $totalBalance = $wallets->sum('balance');
+        $msg .= "💳 *Saldo Sekarang:* Rp" . number_format($totalBalance, 0, ',', '.') . "\n";
+
+        $this->telegram->sendMessage($chatId, $msg);
+
+        // ── Pesan 2: Top Pengeluaran per Kategori ─────────────────────────
+        $expByCategory = $transactions
+            ->where('type', 'expense')
+            ->groupBy('category_id')
+            ->map(fn($t) => [
+                'name'  => $t->first()->category?->name ?? 'Lainnya',
+                'total' => $t->sum('amount'),
+                'count' => $t->count(),
+            ])
+            ->sortByDesc('total')
+            ->values();
+
+        if ($expByCategory->isNotEmpty()) {
+            $catMsg = "🏆 *TOP PENGELUARAN PER KATEGORI*\n\n";
+            $maxExp = $expByCategory->max('total');
+            foreach ($expByCategory->take(8) as $i => $cat) {
+                $pct     = $expense > 0 ? round($cat['total'] / $expense * 100) : 0;
+                $bar     = str_repeat('█', (int)($pct / 10)) . str_repeat('░', 10 - (int)($pct / 10));
+                $catMsg .= ($i + 1) . ". *{$cat['name']}*\n";
+                $catMsg .= "   Rp" . number_format($cat['total'], 0, ',', '.') . " ({$pct}%) · {$cat['count']}x\n";
+                $catMsg .= "   `{$bar}`\n\n";
+            }
+            $this->telegram->sendMessage($chatId, $catMsg);
+        }
+
+        // ── Pesan 3: Pengeluaran Terbesar ─────────────────────────────────
+        $bigExpenses = $transactions
+            ->where('type', 'expense')
+            ->sortByDesc('amount')
+            ->take(5);
+
+        if ($bigExpenses->isNotEmpty()) {
+            $bigMsg = "💸 *PENGELUARAN TERBESAR*\n\n";
+            foreach ($bigExpenses as $i => $tx) {
+                $desc    = $tx->description ?? $tx->merchant ?? ($tx->category?->name ?? 'Pengeluaran');
+                $wallet  = $tx->wallet->name;
+                $date    = $tx->transaction_date->format('d M');
+                $bigMsg .= ($i + 1) . ". *" . \Str::limit($desc, 30) . "*\n";
+                $bigMsg .= "   Rp" . number_format($tx->amount, 0, ',', '.') . " · {$wallet} · {$date}\n\n";
+            }
+            $this->telegram->sendMessage($chatId, $bigMsg);
+        }
+
+        // ── Pesan 4: Saldo per Wallet ─────────────────────────────────────
+        if ($wallets->count() > 1) {
+            $walletMsg = "💳 *SALDO PER WALLET*\n\n";
+            foreach ($wallets as $w) {
+                $walletMsg .= "• *{$w->name}*: Rp" . number_format($w->balance, 0, ',', '.') . "\n";
+            }
+            $this->telegram->sendMessage($chatId, $walletMsg);
+        }
+
+        // ── Pesan 5: AI Insight ────────────────────────────────────────────
+        try {
+            $topCatName   = $expByCategory->first()['name'] ?? 'Lainnya';
+            $prevMonth    = \Carbon\Carbon::createFromDate($year, $month, 1)->subMonth();
+            $prevExpense  = $user->transactions()->completed()
+                               ->byMonth($prevMonth->year, $prevMonth->month)
+                               ->where('type', 'expense')->sum('amount');
+            $compPct      = $prevExpense > 0
+                ? round(($expense - $prevExpense) / $prevExpense * 100, 1)
+                : 0;
+            $comparison   = $compPct >= 0
+                ? "naik {$compPct}% dari bulan lalu"
+                : "turun " . abs($compPct) . "% dari bulan lalu";
+
+            $insight = $this->grokAI->generateFinancialInsight($user, [
+                'income'       => number_format($income, 0, ',', '.'),
+                'expense'      => number_format($expense, 0, ',', '.'),
+                'top_category' => $topCatName,
+                'comparison'   => $comparison,
+            ]);
+
+            $insightMsg = "🤖 *AI INSIGHT*\n\n{$insight}\n\n";
+            $insightMsg .= "_Lihat laporan lengkap: " . config('app.url') . "/reports_";
+            $this->telegram->sendMessage($chatId, $insightMsg);
+        } catch (\Throwable $e) {
+            // AI insight opsional, tidak perlu error jika gagal
+            Log::warning('AI insight gagal: ' . $e->getMessage());
+        }
+    }
+
     protected function detectType(array $message): string
     {
         if (isset($message['text']))     return 'text';
@@ -509,13 +661,87 @@ class TelegramWebhookService
 
     protected function buildUserContext(User $user): array
     {
-        $now = now();
+        $now  = now();
+        $year = $now->year;
+        $month = $now->month;
+
+        // Top categories this month
+        $topCategories = $user->transactions()
+            ->completed()
+            ->where('type', 'expense')
+            ->byMonth($year, $month)
+            ->selectRaw('category_id, sum(amount) as total')
+            ->groupBy('category_id')
+            ->orderByDesc('total')
+            ->with('category')
+            ->limit(5)
+            ->get()
+            ->map(fn($t) => [
+                'kategori' => $t->category?->name ?? 'Lainnya',
+                'total'    => (float) $t->total,
+            ])
+            ->toArray();
+
+        // Last 10 transactions
+        $recentTransactions = $user->transactions()
+            ->completed()
+            ->with(['category', 'wallet'])
+            ->orderBy('transaction_date', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(fn($t) => [
+                'tanggal'  => $t->transaction_date->format('d M Y'),
+                'tipe'     => $t->type,
+                'jumlah'   => (float) $t->amount,
+                'kategori' => $t->category?->name ?? '-',
+                'wallet'   => $t->wallet->name,
+                'deskripsi'=> $t->description ?? '-',
+            ])
+            ->toArray();
+
+        // Prev month
+        $prevMonth   = $now->copy()->subMonth();
+        $prevIncome  = $user->transactions()->completed()->byMonth($prevMonth->year, $prevMonth->month)->where('type','income')->sum('amount');
+        $prevExpense = $user->transactions()->completed()->byMonth($prevMonth->year, $prevMonth->month)->where('type','expense')->sum('amount');
+
+        $monthlyIncome  = $user->transactions()->completed()->byMonth($year, $month)->where('type','income')->sum('amount');
+        $monthlyExpense = $user->transactions()->completed()->byMonth($year, $month)->where('type','expense')->sum('amount');
+
         return [
-            'month'           => $now->format('F Y'),
-            'total_balance'   => $user->total_balance,
-            'monthly_income'  => $user->transactions()->completed()->byMonth($now->year, $now->month)->where('type', 'income')->sum('amount'),
-            'monthly_expense' => $user->transactions()->completed()->byMonth($now->year, $now->month)->where('type', 'expense')->sum('amount'),
-            'wallets'         => $user->wallets()->where('is_active', true)->get(['name', 'balance'])->toArray(),
+            'user_name'                      => $user->name,
+            'bulan_ini'                      => $now->translatedFormat('F Y'),
+            'total_saldo'                    => (float) $user->total_balance,
+            'pemasukan_bulan_ini'            => (float) $monthlyIncome,
+            'pengeluaran_bulan_ini'          => (float) $monthlyExpense,
+            'cashflow_bulan_ini'             => (float) ($monthlyIncome - $monthlyExpense),
+            'pemasukan_bulan_lalu'           => (float) $prevIncome,
+            'pengeluaran_bulan_lalu'         => (float) $prevExpense,
+            'top_kategori_pengeluaran'       => $topCategories,
+            '10_transaksi_terakhir'          => $recentTransactions,
+            'wallets'                        => $user->wallets()->where('is_active', true)->get(['name', 'balance', 'type'])
+                                                     ->map(fn($w) => ['nama' => $w->name, 'saldo' => (float)$w->balance, 'tipe' => $w->type])
+                                                     ->toArray(),
         ];
+    }
+
+    /**
+     * Detect if text looks like a question/request rather than a transaction.
+     */
+    protected function looksLikeQuestion(string $text): bool
+    {
+        $questionKeywords = [
+            'rekap', 'rekapan', 'rangkum', 'rangkuman', 'laporan', 'laporkaan',
+            'berapa', 'gimana', 'bagaimana', 'tolong', 'buatkan', 'buat',
+            'analisa', 'analisis', 'boros', 'hemat', 'saran', 'rekomendasi',
+            'paling', 'terbesar', 'terkecil', 'total', 'ringkasan', 'summary',
+            'bulan', 'minggu', 'tahun', 'hari ini', 'kemarin',
+            '?', 'dong', 'yuk', 'deh', 'kan', 'nih',
+        ];
+
+        $lower = strtolower($text);
+        foreach ($questionKeywords as $kw) {
+            if (str_contains($lower, $kw)) return true;
+        }
+        return false;
     }
 }

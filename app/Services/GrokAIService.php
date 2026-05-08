@@ -247,17 +247,28 @@ PROMPT;
     }
 
     /**
-     * Answer a financial question from WhatsApp.
+     * Answer a financial question from Telegram/WhatsApp using full DB context.
      */
     public function answerFinancialQuestion(string $question, User $user, array $context): string
     {
-        $contextStr = json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        $systemPrompt = <<<PROMPT
-Kamu adalah asisten keuangan pribadi. Jawab pertanyaan user berdasarkan data keuangan berikut:
-{$contextStr}
+        $contextJson  = json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $name         = $user->name;
 
-Jawab dengan singkat, jelas, dan dalam Bahasa Indonesia. Maksimal 3-4 kalimat.
-Sertakan angka/nilai yang relevan.
+        $systemPrompt = <<<PROMPT
+Kamu adalah asisten keuangan pribadi AI yang cerdas dan ramah untuk {$name}.
+
+DATA KEUANGAN USER (real-time dari database):
+{$contextJson}
+
+TUGAS:
+- Jawab pertanyaan user berdasarkan data di atas secara akurat dan spesifik
+- Jika user minta "rekap", "rangkuman", "laporan bulanan", "buatkan laporan" → buat laporan lengkap dan terstruktur dengan semua angka
+- Jika user minta analisa → berikan insight yang actionable dan personal
+- Gunakan format Markdown Telegram: *bold*, _italic_, `code`
+- Gunakan emoji yang relevan agar mudah dibaca
+- Jawab dalam Bahasa Indonesia yang natural dan ramah
+- Selalu sertakan angka spesifik dari data, JANGAN generik
+- Jika diminta rekap/laporan bulanan: tampilkan pemasukan, pengeluaran, cashflow, top kategori, saldo wallet
 PROMPT;
 
         try {
@@ -265,10 +276,13 @@ PROMPT;
                 ['role' => 'system', 'content' => $systemPrompt],
                 ['role' => 'user', 'content' => $question],
             ], useVision: false);
-            $this->logRequest($user->id, 'chat', $question,
-                $response['choices'][0]['message']['content'] ?? '',
+
+            $answer = trim($response['choices'][0]['message']['content'] ?? 'Maaf, saya tidak bisa menjawab pertanyaan itu.');
+
+            $this->logRequest($user->id, 'chat', $question, $answer,
                 $response['usage'] ?? [], 0, true);
-            return trim($response['choices'][0]['message']['content'] ?? 'Maaf, saya tidak bisa menjawab pertanyaan itu.');
+
+            return $answer;
         } catch (\Throwable $e) {
             Log::error('AI chat error: ' . $e->getMessage());
             return 'Maaf, layanan AI sedang tidak tersedia.';
