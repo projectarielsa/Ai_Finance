@@ -62,63 +62,32 @@ class ReceiptScannerService
             ];
         }
 
-        $amount   = (float) $scanned['total_amount'];
+        $amount    = (float) $scanned['total_amount'];
         $amountFmt = number_format($amount, 0, ',', '.');
-        $merchant = $scanned['merchant_name'] ?? null;
-        $category = $scanned['category'] ?? 'Belanja';
+        $merchant  = $scanned['merchant_name'] ?? null;
+        $category  = $scanned['category'] ?? 'Belanja';
 
-        // Wallet not detected → ask user (return needs_wallet so Telegram can show keyboard)
-        if (empty($scanned['detected_wallet'])) {
-            $merchantText = $merchant ? "\nMerchant: *{$merchant}*" : '';
-            return [
-                'success'      => false,
-                'needs_wallet' => true,
-                'receipt_scan' => $receiptScan,
-                'amount'       => $amount,
-                'message'      => "📋 *Struk berhasil dibaca!*{$merchantText}\nTotal: Rp{$amountFmt}\nKategori: {$category}\n\n💳 *Pembayaran menggunakan wallet apa?*",
-            ];
-        }
+        // ── SELALU tampilkan keyboard pilih wallet ─────────────────────────
+        // Apapun kondisinya (wallet terdeteksi atau tidak), kita selalu
+        // minta user konfirmasi via tombol. Ini mencegah salah wallet.
+        $receiptScan->update(['needs_wallet_confirmation' => true]);
 
-        // Try to match detected wallet
-        $wallets = $user->wallets()->where('is_active', true)->get();
-        $wallet  = $this->findWallet($scanned['detected_wallet'], $wallets);
-
-        if (!$wallet) {
-            $receiptScan->update(['needs_wallet_confirmation' => true]);
-            $merchantText = $merchant ? "\nMerchant: *{$merchant}*" : '';
-            return [
-                'success'      => false,
-                'needs_wallet' => true,
-                'receipt_scan' => $receiptScan,
-                'amount'       => $amount,
-                'message'      => "📋 *Struk berhasil dibaca!*{$merchantText}\nTotal: Rp{$amountFmt}\nKategori: {$category}\n\n💳 *Pembayaran menggunakan wallet apa?*",
-            ];
-        }
-
-        // Auto-create transaction
-        $transaction = $this->createTransactionFromScan($scanned, $user, $wallet, $receiptScan);
-
-        if (!$transaction) {
-            return [
-                'success' => false,
-                'message' => "⚠️ Saldo *{$wallet->name}* tidak cukup untuk transaksi Rp{$amountFmt}.",
-            ];
-        }
-
-        $date = $receiptScan->receipt_date
-            ? date('d M Y', strtotime($receiptScan->receipt_date))
-            : now()->format('d M Y');
+        $merchantText = $merchant ? "\nMerchant: *{$merchant}*" : '';
+        $dateText     = !empty($scanned['receipt_date'])
+                        ? "\nTanggal: " . date('d M Y', strtotime($scanned['receipt_date']))
+                        : '';
 
         return [
-            'success'      => true,
-            'transaction'  => $transaction,
+            'success'      => false,
+            'needs_wallet' => true,
             'receipt_scan' => $receiptScan,
-            'message'      => "✅ *Transaksi berhasil dicatat!*" .
-                              ($merchant ? "\nMerchant: {$merchant}" : '') .
-                              "\nTotal: Rp{$amountFmt}" .
+            'amount'       => $amount,
+            'message'      => "📋 *Struk berhasil dibaca!*" .
+                              $merchantText .
+                              "\nTotal: *Rp{$amountFmt}*" .
                               "\nKategori: {$category}" .
-                              "\nWallet: {$wallet->name}" .
-                              "\nTanggal: {$date}",
+                              $dateText .
+                              "\n\n💳 *Pembayaran menggunakan wallet apa?*",
         ];
     }
 

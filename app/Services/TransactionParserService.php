@@ -69,7 +69,6 @@ class TransactionParserService
             $targetName   = $parsed['target_wallet'] ?? 'Cash';
             $targetWallet = $this->findWallet($targetName, $wallets);
             if (!$targetWallet) {
-                // Try fallback to Cash
                 $targetWallet = $wallets->first(fn ($w) => strtolower($w->name) === 'cash');
             }
             if (!$targetWallet) {
@@ -80,12 +79,16 @@ class TransactionParserService
             }
         }
 
-        // ── Balance check ─────────────────────────────────────────────────
-        // We allow recording even if balance is insufficient (e.g. wallet not yet topped up)
-        // Balance will go negative — user gets a warning in the success message.
-        $balanceWarning = false;
+        // ── Balance check — STRICT, tidak boleh minus ─────────────────────
         if (in_array($type, ['expense', 'transfer']) && !$wallet->hasSufficientBalance($amount)) {
-            $balanceWarning = true;
+            return [
+                'success'       => false,
+                'balance_error' => true,
+                'message'       => "⚠️ Saldo *{$wallet->name}* tidak cukup.\n" .
+                                   "Saldo: Rp" . number_format($wallet->balance, 0, ',', '.') . "\n" .
+                                   "Dibutuhkan: Rp" . number_format($amount, 0, ',', '.') . "\n\n" .
+                                   "Silakan top up wallet terlebih dahulu atau gunakan wallet lain.",
+            ];
         }
 
         // ── Find category ─────────────────────────────────────────────────
@@ -102,7 +105,7 @@ class TransactionParserService
             'description'         => $parsed['description'] ?? $message,
             'merchant'            => $parsed['merchant'] ?? null,
             'transaction_date'    => now(),
-            'source'              => 'whatsapp_text', // generic — covers both Telegram & WA
+            'source'              => 'whatsapp_text',
             'ai_confidence'       => $parsed['confidence'] ?? null,
             'ai_raw_response'     => json_encode($parsed),
             'ai_parsed_data'      => $parsed,
@@ -125,7 +128,7 @@ class TransactionParserService
             'transaction' => $transaction,
             'wallet'      => $wallet,
             'parsed'      => $parsed,
-            'message'     => $this->buildSuccessMessage($transaction, $wallet, $targetWallet, $category, $balanceWarning),
+            'message'     => $this->buildSuccessMessage($transaction, $wallet, $targetWallet, $category),
         ];
     }
 
@@ -137,29 +140,23 @@ class TransactionParserService
 
         $name = strtolower(trim($name));
 
-        // 1. Exact name match
         $found = $wallets->first(fn ($w) => strtolower($w->name) === $name);
         if ($found) return $found;
 
-        // 2. Exact provider match
         $found = $wallets->first(fn ($w) => strtolower($w->provider ?? '') === $name);
         if ($found) return $found;
 
-        // 3. Alias match
         foreach ($wallets as $w) {
             $aliases = array_map('strtolower', $w->ai_aliases ?? []);
             if (in_array($name, $aliases)) return $w;
         }
 
-        // 4. Name contains search term
         $found = $wallets->first(fn ($w) => str_contains(strtolower($w->name), $name));
         if ($found) return $found;
 
-        // 5. Search term contains name (e.g. "gopay saya" → "gopay")
         $found = $wallets->first(fn ($w) => str_contains($name, strtolower($w->name)));
         if ($found) return $found;
 
-        // 6. Provider contains search term
         return $wallets->first(fn ($w) => str_contains(strtolower($w->provider ?? ''), $name));
     }
 
@@ -177,27 +174,22 @@ class TransactionParserService
         ) ?? $categories->where('type', $type)->first();
     }
 
-    protected function buildSuccessMessage(Transaction $t, Wallet $wallet, ?Wallet $targetWallet, ?Category $category, bool $balanceWarning = false): string
+    protected function buildSuccessMessage(Transaction $t, Wallet $wallet, ?Wallet $targetWallet, ?Category $category): string
     {
         $amount = 'Rp' . number_format($t->amount, 0, ',', '.');
         $date   = $t->transaction_date->format('d M Y');
 
         if ($t->type === 'transfer') {
-            $msg = "🔄 *Transfer berhasil dicatat!*\nDari: {$wallet->name}\nKe: {$targetWallet?->name}\nJumlah: {$amount}\nTanggal: {$date}";
-        } else {
-            $icon     = $t->type === 'income' ? '💰' : '💸';
-            $typeText = $t->type === 'income' ? 'Pemasukan' : 'Pengeluaran';
-            $msg      = "{$icon} *{$typeText} berhasil dicatat!*\nJumlah: {$amount}\nWallet: {$wallet->name}";
-            if ($category) $msg .= "\nKategori: {$category->name}";
-            if ($t->description) $msg .= "\nDeskripsi: {$t->description}";
-            if ($t->merchant) $msg .= "\nMerchant: {$t->merchant}";
-            $msg .= "\nTanggal: {$date}";
+            return "🔄 *Transfer berhasil dicatat!*\nDari: {$wallet->name}\nKe: {$targetWallet?->name}\nJumlah: {$amount}\nTanggal: {$date}";
         }
 
-        if ($balanceWarning) {
-            $saldo = 'Rp' . number_format($wallet->fresh()->balance, 0, ',', '.');
-            $msg .= "\n\n⚠️ *Perhatian:* Saldo {$wallet->name} sekarang {$saldo}. Segera top up!";
-        }
+        $icon     = $t->type === 'income' ? '💰' : '💸';
+        $typeText = $t->type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+        $msg      = "{$icon} *{$typeText} berhasil dicatat!*\nJumlah: {$amount}\nWallet: {$wallet->name}";
+        if ($category) $msg .= "\nKategori: {$category->name}";
+        if ($t->description) $msg .= "\nDeskripsi: {$t->description}";
+        if ($t->merchant)   $msg .= "\nMerchant: {$t->merchant}";
+        $msg .= "\nTanggal: {$date}";
 
         return $msg;
     }

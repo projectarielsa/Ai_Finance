@@ -178,6 +178,13 @@ class TelegramWebhookService
 
         $msgRecord->update(['media_path' => $path]);
         $result = $this->receiptScanner->processReceipt($path, $user, $msgRecord->id);
+
+        // Same as photo — show wallet keyboard if needed
+        if (!empty($result['needs_wallet']) && isset($result['receipt_scan'])) {
+            $this->sendWalletKeyboard($chatId, $user, $result['receipt_scan']->id, $result['message']);
+            return;
+        }
+
         $this->telegram->sendMessage($chatId, $result['message']);
     }
 
