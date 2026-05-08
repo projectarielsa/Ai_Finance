@@ -120,18 +120,22 @@ class TelegramWebhookService
             return;
         }
 
-        // Parse as financial transaction
+        // ── Cek apakah ini pertanyaan/permintaan analisa DULU ────────────────
+        // Jika ya, langsung jawab via AI tanpa coba parse sebagai transaksi
+        // Ini mencegah AI membuang token untuk parseTransaction yang pasti gagal
+        if ($this->looksLikeQuestion($text)) {
+            $context = $this->buildUserContext($user);
+            $reply   = $this->grokAI->answerFinancialQuestion($text, $user, $context);
+            $this->telegram->sendMessage($chatId, $reply);
+            return;
+        }
+
+        // ── Parse as financial transaction ────────────────────────────────
         $result = $this->transactionParser->parseAndSave($text, $user);
         $reply  = $result['message'] ?? ($result['success'] ? '✅ Transaksi dicatat!' : '❌ Tidak dikenali sebagai transaksi keuangan.');
 
         if (!$result['success'] && ($result['balance_error'] ?? false)) {
             $reply = "⚠️ " . $result['message'];
-        }
-
-        // If AI couldn't parse as transaction AND the text looks like a question → answer as AI
-        if (!$result['success'] && !($result['balance_error'] ?? false) && $this->looksLikeQuestion($text)) {
-            $context = $this->buildUserContext($user);
-            $reply   = $this->grokAI->answerFinancialQuestion($text, $user, $context);
         }
 
         $this->telegram->sendMessage($chatId, $reply);
@@ -726,22 +730,48 @@ class TelegramWebhookService
 
     /**
      * Detect if text looks like a question/request rather than a transaction.
+     * Check BEFORE trying to parse as transaction to avoid wasting AI tokens.
      */
     protected function looksLikeQuestion(string $text): bool
     {
+        $lower = strtolower(trim($text));
+
+        // Explicit question keywords
         $questionKeywords = [
-            'rekap', 'rekapan', 'rangkum', 'rangkuman', 'laporan', 'laporkaan',
-            'berapa', 'gimana', 'bagaimana', 'tolong', 'buatkan', 'buat',
-            'analisa', 'analisis', 'boros', 'hemat', 'saran', 'rekomendasi',
-            'paling', 'terbesar', 'terkecil', 'total', 'ringkasan', 'summary',
-            'bulan', 'minggu', 'tahun', 'hari ini', 'kemarin',
-            '?', 'dong', 'yuk', 'deh', 'kan', 'nih',
+            // Rekap/laporan
+            'rekap', 'rekapan', 'rangkum', 'rangkuman', 'laporan', 'buatkan laporan',
+            'ringkasan', 'summary', 'resume',
+            // Pertanyaan umum
+            'berapa', 'gimana', 'bagaimana', 'kenapa', 'mengapa', 'kapan',
+            'dimana', 'di mana', 'siapa', 'apa saja', 'apa yang',
+            // Permintaan
+            'tolong', 'coba', 'bantu', 'buatkan', 'buatin', 'kasih tau',
+            'kasih lihat', 'tampilkan', 'lihatkan', 'ceritakan', 'jelaskan',
+            // Analisa
+            'analisa', 'analisis', 'evaluasi', 'review', 'cek', 'check',
+            'boros', 'hemat', 'irit', 'saran', 'rekomendasi', 'tips',
+            'gimana', 'bagusnya', 'sebaiknya',
+            // Waktu
+            'bulan ini', 'bulan lalu', 'minggu ini', 'tahun ini',
+            'kemarin', 'hari ini', 'januari', 'februari', 'maret', 'april',
+            'mei', 'juni', 'juli', 'agustus', 'september', 'oktober',
+            'november', 'desember',
+            // Statistik
+            'paling', 'terbesar', 'terkecil', 'terbanyak', 'total', 'jumlah',
+            'rata-rata', 'rata rata', 'perbandingan', 'trend',
+            // Informal
+            '?', 'dong', 'yuk', 'deh', 'kan', 'nih', 'sih', 'ya', 'yaa',
         ];
 
-        $lower = strtolower($text);
         foreach ($questionKeywords as $kw) {
             if (str_contains($lower, $kw)) return true;
         }
+
+        // Jika teks lebih dari 5 kata dan tidak mengandung angka → kemungkinan pertanyaan
+        $words = explode(' ', $lower);
+        $hasNumber = preg_match('/\d/', $lower);
+        if (count($words) > 5 && !$hasNumber) return true;
+
         return false;
     }
 }
