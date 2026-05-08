@@ -41,7 +41,26 @@ class TelegramBotService
                 return true;
             }
 
-            Log::error('Telegram sendMessage failed: ' . $response->body());
+            // Markdown parsing failed → retry without parse_mode (plain text)
+            $errorBody = $response->json();
+            $errorDesc = $errorBody['description'] ?? '';
+            if (str_contains($errorDesc, "can't parse") || str_contains($errorDesc, 'parse entities')) {
+                Log::warning("Telegram Markdown parse error, retrying as plain text: {$errorDesc}");
+                $plainExtra = $extra;
+                unset($plainExtra['parse_mode']);
+                $retry = Http::timeout(15)->post("{$this->baseUrl}/sendMessage", array_merge([
+                    'chat_id' => $chatId,
+                    'text'    => $this->stripMarkdown($text),
+                ], $plainExtra));
+                if ($retry->successful()) {
+                    $this->logOutbound($chatId, $text, $retry->json());
+                    return true;
+                }
+                Log::error('Telegram sendMessage plain retry also failed: ' . $retry->body());
+            } else {
+                Log::error('Telegram sendMessage failed: ' . $response->body());
+            }
+
             return false;
         } catch (\Throwable $e) {
             Log::error('Telegram sendMessage error: ' . $e->getMessage());
@@ -194,5 +213,19 @@ class TelegramBotService
             'raw_payload' => $response,
             'sent_at'   => now(),
         ]);
+    }
+
+    /**
+     * Strip Markdown formatting for plain text fallback.
+     */
+    protected function stripMarkdown(string $text): string
+    {
+        // Remove bold/italic markers
+        $text = preg_replace('/\*+(.*?)\*+/', '$1', $text);
+        $text = preg_replace('/_(.*?)_/', '$1', $text);
+        $text = preg_replace('/`(.*?)`/', '$1', $text);
+        // Remove inline links [text](url)
+        $text = preg_replace('/\[(.*?)\]\(.*?\)/', '$1', $text);
+        return $text;
     }
 }
