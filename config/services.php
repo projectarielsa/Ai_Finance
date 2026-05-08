@@ -13,10 +13,14 @@ return [
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
-    'grok' => [
-        'api_key'  => env('GROK_API_KEY'),
-        'model'    => env('GROK_MODEL', 'grok-2-vision-1212'),
-        'base_url' => env('GROK_BASE_URL', 'https://api.x.ai/v1'),
+    'ai' => [
+        'provider' => env('AI_PROVIDER', 'groq'), // groq, grok, openai
+    ],
+    'groq' => [
+        'api_key'      => env('GROQ_API_KEY'),
+        'model'        => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+        'vision_model' => env('GROQ_VISION_MODEL', 'meta-llama/llama-4-scout-17b-16e-instruct'),
+        'base_url'     => env('GROQ_BASE_URL', 'https://api.groq.com/openai/v1'),
     ],
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),

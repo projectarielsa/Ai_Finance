@@ -69,15 +69,21 @@
     </div>
 
     <div class="glass-card p-5 border border-blue-500/20 bg-blue-500/5">
-        <h4 class="text-blue-300 font-semibold text-sm mb-2">📌 Panduan Setup Grok AI</h4>
+        <h4 class="text-blue-300 font-semibold text-sm mb-2">📌 Panduan Setup Groq AI</h4>
         <ol class="text-dark-300 text-sm space-y-1 list-decimal list-inside">
-            <li>Dapatkan API key dari <a href="https://console.x.ai" target="_blank" class="text-primary-400 hover:underline">console.x.ai</a></li>
-            <li>Klik "+ Tambah Credential" dan pilih provider <strong class="text-white">grok</strong></li>
-            <li>Input API key dan endpoint URL: <code class="text-xs bg-dark-700 px-1.5 py-0.5 rounded">https://api.x.ai/v1</code></li>
-            <li>Model yang direkomendasikan: <code class="text-xs bg-dark-700 px-1.5 py-0.5 rounded">grok-2-vision-1212</code></li>
+            <li>Dapatkan API key dari <a href="https://console.groq.com/keys" target="_blank" class="text-primary-400 hover:underline">console.groq.com/keys</a> (gratis!)</li>
+            <li>Klik "+ Tambah Credential" dan pilih provider <strong class="text-white">groq</strong></li>
+            <li>Input API key (format: <code class="text-xs bg-dark-700 px-1.5 py-0.5 rounded">gsk_xxxxxxxxxxxx</code>)</li>
+            <li>Endpoint URL: <code class="text-xs bg-dark-700 px-1.5 py-0.5 rounded">https://api.groq.com/openai/v1</code></li>
+            <li>Model teks: <code class="text-xs bg-dark-700 px-1.5 py-0.5 rounded">llama-3.3-70b-versatile</code></li>
+            <li>Model vision (untuk struk): <code class="text-xs bg-dark-700 px-1.5 py-0.5 rounded">meta-llama/llama-4-scout-17b-16e-instruct</code></li>
             <li>Centang "Default" dan "Aktif", lalu simpan</li>
             <li>Klik tombol ▶ untuk test koneksi</li>
         </ol>
+        <div class="mt-3 p-3 rounded-lg bg-dark-700/50 border border-dark-600/30">
+            <p class="text-dark-400 text-xs font-medium mb-1">💡 Tips: Vision Model</p>
+            <p class="text-dark-500 text-xs">Untuk mengisi vision model di field "Meta/Additional", gunakan JSON: <code class="bg-dark-800 px-1 py-0.5 rounded text-dark-300">{"vision_model": "meta-llama/llama-4-scout-17b-16e-instruct"}</code></p>
+        </div>
     </div>
 </div>
 @endsection

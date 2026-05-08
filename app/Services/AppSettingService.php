@@ -19,9 +19,15 @@ class AppSettingService
         AppSetting::set($key, $value, $type);
     }
 
-    public function getGrokCredential(): ?ApiCredential
+    public function getAiProvider(): string
     {
-        return ApiCredential::getDefault('grok');
+        return config('services.ai.provider', 'groq');
+    }
+
+    public function getAiCredential(): ?ApiCredential
+    {
+        $provider = $this->getAiProvider();
+        return ApiCredential::getDefault($provider);
     }
 
     public function getDefaultGateway(): ?WhatsappGateway
@@ -29,22 +35,29 @@ class AppSettingService
         return WhatsappGateway::getDefault();
     }
 
-    public function getGrokApiKey(): ?string
+    public function getAiApiKey(): ?string
     {
-        $cred = $this->getGrokCredential();
-        return $cred?->key_value ?? config('services.grok.api_key');
+        $cred = $this->getAiCredential();
+        return $cred?->key_value ?? config('services.groq.api_key');
     }
 
-    public function getGrokModel(): string
+    public function getAiModel(): string
     {
-        $cred = $this->getGrokCredential();
-        return $cred?->model ?? config('services.grok.model', 'grok-2-vision-1212');
+        $cred = $this->getAiCredential();
+        return $cred?->model ?? config('services.groq.model', 'llama-3.3-70b-versatile');
     }
 
-    public function getGrokBaseUrl(): string
+    public function getAiVisionModel(): string
     {
-        $cred = $this->getGrokCredential();
-        return $cred?->endpoint_url ?? config('services.grok.base_url', 'https://api.x.ai/v1');
+        $cred = $this->getAiCredential();
+        $meta = $cred?->meta;
+        return $meta['vision_model'] ?? config('services.groq.vision_model', 'meta-llama/llama-4-scout-17b-16e-instruct');
+    }
+
+    public function getAiBaseUrl(): string
+    {
+        $cred = $this->getAiCredential();
+        return $cred?->endpoint_url ?? config('services.groq.base_url', 'https://api.groq.com/openai/v1');
     }
 
     public function getWhatsappGateway(): ?WhatsappGateway

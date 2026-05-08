@@ -7,17 +7,25 @@ use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * AI Service - Supports Groq API (OpenAI-compatible endpoint).
+ * Uses llama-3.3-70b-versatile for text and llama-4-scout for vision.
+ */
 class GrokAIService
 {
     protected string $apiKey;
     protected string $model;
+    protected string $visionModel;
     protected string $baseUrl;
+    protected string $provider;
 
     public function __construct(protected AppSettingService $settings)
     {
-        $this->apiKey  = $settings->getGrokApiKey() ?? '';
-        $this->model   = $settings->getGrokModel();
-        $this->baseUrl = $settings->getGrokBaseUrl();
+        $this->apiKey      = $settings->getAiApiKey() ?? '';
+        $this->model       = $settings->getAiModel();
+        $this->visionModel = $settings->getAiVisionModel();
+        $this->baseUrl     = $settings->getAiBaseUrl();
+        $this->provider    = $settings->getAiProvider();
     }
 
     /**
@@ -66,7 +74,7 @@ PROMPT;
             $response = $this->callApi([
                 ['role' => 'system', 'content' => $systemPrompt],
                 ['role' => 'user', 'content' => $message],
-            ]);
+            ], useVision: false);
 
             $duration = (int)((microtime(true) - $startTime) * 1000);
             $content  = $response['choices'][0]['message']['content'] ?? '{}';
@@ -80,13 +88,13 @@ PROMPT;
             $duration = (int)((microtime(true) - $startTime) * 1000);
             $this->logRequest($user->id, 'transaction_parse', $message, null,
                 [], $duration, false, $e->getMessage());
-            Log::error('GrokAI parseTransaction error: ' . $e->getMessage());
+            Log::error('AI parseTransaction error: ' . $e->getMessage());
             return ['error' => 'AI service unavailable', 'confidence' => 0];
         }
     }
 
     /**
-     * Scan a receipt image using vision AI.
+     * Scan a receipt image using vision AI (Groq Vision Model).
      */
     public function scanReceipt(string $imageBase64, string $mimeType, User $user): array
     {
@@ -115,11 +123,11 @@ PROMPT;
                 [
                     'role' => 'user',
                     'content' => [
-                        ['type' => 'text', 'text' => 'Scan struk ini dan berikan detail transaksi.'],
+                        ['type' => 'text', 'text' => 'Scan struk ini dan berikan detail transaksi dalam format JSON.'],
                         ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$imageBase64}"]],
                     ],
                 ],
-            ]);
+            ], useVision: true);
 
             $duration = (int)((microtime(true) - $startTime) * 1000);
             $content  = $response['choices'][0]['message']['content'] ?? '{}';
@@ -133,30 +141,69 @@ PROMPT;
             $duration = (int)((microtime(true) - $startTime) * 1000);
             $this->logRequest($user->id, 'receipt_scan', 'image_input', null,
                 [], $duration, false, $e->getMessage());
-            Log::error('GrokAI scanReceipt error: ' . $e->getMessage());
+            Log::error('AI scanReceipt error: ' . $e->getMessage());
             return ['error' => 'Receipt scan failed', 'confidence' => 0];
         }
     }
 
     /**
-     * Transcribe audio to text.
+     * Transcribe audio to text using Groq Whisper API.
      */
     public function transcribeAudio(string $audioBase64, string $mimeType, User $user): array
     {
-        $systemPrompt = 'Kamu adalah AI transcriber. Ubah audio berikut menjadi teks bahasa Indonesia yang akurat. Kembalikan hanya teks transkrip tanpa format tambahan.';
+        $startTime = microtime(true);
+        try {
+            // Groq supports Whisper for audio transcription via /audio/transcriptions
+            $audioContent = base64_decode($audioBase64);
+            $tempFile     = tempnam(sys_get_temp_dir(), 'voice_') . '.ogg';
+            file_put_contents($tempFile, $audioContent);
 
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$this->apiKey}",
+            ])->timeout(60)->attach(
+                'file', file_get_contents($tempFile), basename($tempFile)
+            )->post("{$this->baseUrl}/audio/transcriptions", [
+                'model'    => 'whisper-large-v3',
+                'language' => 'id',
+            ]);
+
+            @unlink($tempFile);
+
+            if (!$response->successful()) {
+                // Fallback: Use text model to "transcribe" via vision
+                return $this->transcribeViaVision($audioBase64, $mimeType, $user);
+            }
+
+            $duration      = (int)((microtime(true) - $startTime) * 1000);
+            $transcription = trim($response->json('text', ''));
+
+            $this->logRequest($user->id, 'voice_transcription', 'audio_input', $transcription,
+                [], $duration, true);
+
+            return ['transcription' => $transcription, 'success' => !empty($transcription)];
+        } catch (\Throwable $e) {
+            // Fallback to vision model
+            return $this->transcribeViaVision($audioBase64, $mimeType, $user);
+        }
+    }
+
+    /**
+     * Fallback transcription via vision model (for providers that don't support Whisper).
+     */
+    protected function transcribeViaVision(string $audioBase64, string $mimeType, User $user): array
+    {
         $startTime = microtime(true);
         try {
             $response = $this->callApi([
-                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'system', 'content' => 'Kamu adalah AI transcriber. Ubah audio berikut menjadi teks bahasa Indonesia yang akurat. Kembalikan hanya teks transkrip tanpa format tambahan.'],
                 [
                     'role' => 'user',
                     'content' => [
-                        ['type' => 'text', 'text' => 'Transcribe audio ini:'],
+                        ['type' => 'text', 'text' => 'Transcribe audio ini ke teks bahasa Indonesia:'],
                         ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$audioBase64}"]],
                     ],
                 ],
-            ]);
+            ], useVision: true);
 
             $duration      = (int)((microtime(true) - $startTime) * 1000);
             $transcription = trim($response['choices'][0]['message']['content'] ?? '');
@@ -164,7 +211,7 @@ PROMPT;
             $this->logRequest($user->id, 'voice_transcription', 'audio_input', $transcription,
                 $response['usage'] ?? [], $duration, true);
 
-            return ['transcription' => $transcription, 'success' => true];
+            return ['transcription' => $transcription, 'success' => !empty($transcription)];
         } catch (\Throwable $e) {
             $this->logRequest($user->id, 'voice_transcription', 'audio_input', null,
                 [], 0, false, $e->getMessage());
@@ -191,10 +238,10 @@ PROMPT;
             $response = $this->callApi([
                 ['role' => 'system', 'content' => 'Kamu adalah analis keuangan pribadi yang ramah dan profesional.'],
                 ['role' => 'user', 'content' => $prompt],
-            ]);
+            ], useVision: false);
             return trim($response['choices'][0]['message']['content'] ?? 'Tidak ada data insight.');
         } catch (\Throwable $e) {
-            Log::error('GrokAI insight error: ' . $e->getMessage());
+            Log::error('AI insight error: ' . $e->getMessage());
             return 'Insight keuangan tidak tersedia saat ini.';
         }
     }
@@ -217,13 +264,13 @@ PROMPT;
             $response = $this->callApi([
                 ['role' => 'system', 'content' => $systemPrompt],
                 ['role' => 'user', 'content' => $question],
-            ]);
+            ], useVision: false);
             $this->logRequest($user->id, 'chat', $question,
                 $response['choices'][0]['message']['content'] ?? '',
                 $response['usage'] ?? [], 0, true);
             return trim($response['choices'][0]['message']['content'] ?? 'Maaf, saya tidak bisa menjawab pertanyaan itu.');
         } catch (\Throwable $e) {
-            Log::error('GrokAI chat error: ' . $e->getMessage());
+            Log::error('AI chat error: ' . $e->getMessage());
             return 'Maaf, layanan AI sedang tidak tersedia.';
         }
     }
@@ -236,31 +283,38 @@ PROMPT;
         try {
             $response = $this->callApi([
                 ['role' => 'user', 'content' => 'Hello, respond with just "OK"'],
-            ]);
-            return ['success' => true, 'message' => 'Connection successful'];
+            ], useVision: false);
+            return ['success' => true, 'message' => 'Connection successful! Provider: ' . $this->provider . ', Model: ' . $this->model];
         } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
 
-    protected function callApi(array $messages): array
+    /**
+     * Call the AI API (Groq-compatible OpenAI format).
+     */
+    protected function callApi(array $messages, bool $useVision = false): array
     {
         if (empty($this->apiKey)) {
-            throw new \RuntimeException('Grok API key not configured');
+            throw new \RuntimeException('AI API key not configured. Set via Admin Panel → API Credentials.');
         }
+
+        $model = $useVision ? $this->visionModel : $this->model;
 
         $response = Http::withHeaders([
             'Authorization' => "Bearer {$this->apiKey}",
             'Content-Type'  => 'application/json',
         ])->timeout(60)->post("{$this->baseUrl}/chat/completions", [
-            'model'       => $this->model,
+            'model'       => $model,
             'messages'    => $messages,
             'temperature' => 0.1,
             'max_tokens'  => 1024,
         ]);
 
         if (!$response->successful()) {
-            throw new \RuntimeException('Grok API error: ' . $response->body());
+            $errorBody = $response->json();
+            $errorMsg  = $errorBody['error']['message'] ?? $response->body();
+            throw new \RuntimeException("AI API error ({$response->status()}): {$errorMsg}");
         }
 
         return $response->json();
@@ -287,7 +341,7 @@ PROMPT;
     {
         AiLog::create([
             'user_id'           => $userId,
-            'provider'          => 'grok',
+            'provider'          => $this->provider,
             'model'             => $this->model,
             'type'              => $type,
             'prompt'            => substr($prompt, 0, 2000),

@@ -96,7 +96,7 @@ class ApiCredentialController extends Controller
 
     public function testConnection(ApiCredential $apiCredential)
     {
-        if ($apiCredential->provider === 'grok') {
+        if (in_array($apiCredential->provider, ['groq', 'grok'])) {
             $service = app(GrokAIService::class);
             $result  = $service->testConnection();
         } else {

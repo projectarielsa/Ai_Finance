@@ -75,7 +75,7 @@ Akses: http://localhost:8000
 
 ---
 
-## ⚙️ Setup Grok AI (dari Admin Panel)
+## ⚙️ Setup Groq AI (dari Admin Panel)
 
 **TIDAK PERLU edit `.env`!** Semua konfigurasi dilakukan dari Admin Panel.
 
@@ -83,13 +83,37 @@ Akses: http://localhost:8000
 2. Buka **Admin → API Credentials**
 3. Klik **+ Tambah Credential**
 4. Isi:
-   - **Nama**: Grok AI Production
-   - **Provider**: `grok`
-   - **API Key**: Dapatkan dari [console.x.ai](https://console.x.ai)
-   - **Endpoint URL**: `https://api.x.ai/v1`
-   - **Model**: `grok-2-vision-1212`
+   - **Nama**: Groq AI Production
+   - **Provider**: `groq`
+   - **API Key**: Dapatkan dari [console.groq.com/keys](https://console.groq.com/keys) (GRATIS!)
+   - **Endpoint URL**: `https://api.groq.com/openai/v1`
+   - **Model**: `llama-3.3-70b-versatile`
 5. Centang **Aktif** dan **Default**
 6. Simpan, lalu klik tombol **Test Koneksi**
+
+### Model yang Digunakan
+
+| Fungsi | Model | Keterangan |
+|--------|-------|------------|
+| Parse transaksi teks | `llama-3.3-70b-versatile` | Model utama, cepat & akurat |
+| Scan foto struk (Vision) | `meta-llama/llama-4-scout-17b-16e-instruct` | Multimodal, bisa baca gambar |
+| Transcribe voice note | `whisper-large-v3` | Whisper via Groq (super cepat) |
+
+### Konfigurasi Vision Model
+
+Untuk mengatur vision model terpisah, tambahkan di field "Meta" saat membuat credential:
+```json
+{"vision_model": "meta-llama/llama-4-scout-17b-16e-instruct"}
+```
+
+Atau cukup isi di `.env`:
+```env
+AI_PROVIDER=groq
+GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxx
+GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
+GROQ_BASE_URL=https://api.groq.com/openai/v1
+```
 
 ---
 
@@ -268,7 +292,8 @@ chown -R www-data:www-data storage bootstrap/cache
 | Database   | MySQL 8.0                    |
 | Frontend   | Blade, TailwindCSS 3, Alpine.js |
 | Charts     | Chart.js 4                   |
-| AI         | Grok API (xAI)               |
+| AI         | Groq API (Llama 3.3 + Llama 4 Scout Vision) |
+| Audio      | Groq Whisper (whisper-large-v3) |
 | Queue      | Laravel Queue (Database)     |
 | PDF        | DomPDF (barryvdh)            |
 | Excel      | Laravel Excel (Maatwebsite)  |
