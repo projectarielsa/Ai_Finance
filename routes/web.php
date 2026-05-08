@@ -4,13 +4,14 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\ApiCredentialController;
 use App\Http\Controllers\Admin\AppSettingController;
-use App\Http\Controllers\Admin\WhatsappGatewayController;
+use App\Http\Controllers\Admin\TelegramSettingController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\WebhookController;
@@ -33,6 +34,13 @@ Route::post('logout', [LoginController::class, 'logout'])->name('logout')->middl
 // ─── Webhook (public, no auth) ───────────────────────────────────────────────
 Route::post('webhook/whatsapp', [WebhookController::class, 'whatsapp'])->name('webhook.whatsapp');
 Route::get('webhook/verify',    [WebhookController::class, 'verify'])->name('webhook.verify');
+
+// ─── Telegram Webhook (public, no auth) ──────────────────────────────────────
+Route::post('webhook/telegram',             [TelegramController::class, 'webhook'])->name('webhook.telegram');
+Route::get('telegram/setup-webhook',        [TelegramController::class, 'setupWebhook'])->name('telegram.setup-webhook')->middleware('auth');
+Route::get('telegram/delete-webhook',       [TelegramController::class, 'deleteWebhook'])->name('telegram.delete-webhook')->middleware('auth');
+Route::get('telegram/webhook-info',         [TelegramController::class, 'webhookInfo'])->name('telegram.webhook-info')->middleware('auth');
+Route::get('telegram/test',                 [TelegramController::class, 'testConnection'])->name('telegram.test')->middleware('auth');
 
 // ─── Authenticated Routes ─────────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
@@ -85,7 +93,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('settings',           [AppSettingController::class, 'update'])->name('settings.update');
     Route::delete('settings/{appSetting}', [AppSettingController::class, 'destroy'])->name('settings.destroy');
 
+    // Telegram Settings
+    Route::get('telegram',                    [TelegramSettingController::class, 'index'])->name('telegram.index');
+    Route::post('telegram/test',              [TelegramSettingController::class, 'testConnection'])->name('telegram.test-connection');
+    Route::post('telegram/set-webhook',       [TelegramSettingController::class, 'setWebhook'])->name('telegram.set-webhook');
+    Route::post('telegram/delete-webhook',    [TelegramSettingController::class, 'deleteWebhook'])->name('telegram.delete-webhook');
+    Route::post('telegram/send-test',         [TelegramSettingController::class, 'sendTest'])->name('telegram.send-test');
     // Logs
     Route::get('ai-logs',  fn() => view('admin.logs.ai',  ['logs' => \App\Models\AiLog::with('user')->latest()->paginate(50)]))->name('ai-logs');
-    Route::get('wa-logs',  fn() => view('admin.logs.whatsapp', ['messages' => \App\Models\WhatsappMessage::with('user')->latest()->paginate(50)]))->name('wa-logs');
+    Route::get('tg-logs',  fn() => view('admin.logs.telegram', ['messages' => \App\Models\TelegramMessage::with('user')->latest()->paginate(50)]))->name('tg-logs');
 });

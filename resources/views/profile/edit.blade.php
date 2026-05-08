@@ -99,5 +99,36 @@
             @endif
         </div>
     </div>
+
+    {{-- Telegram Connection --}}
+    <div class="glass-card p-6">
+        <h3 class="text-white font-semibold mb-2">🤖 Hubungkan Telegram</h3>
+        @if($user->telegram_id)
+        <div class="flex items-center gap-3 p-3 rounded-xl bg-green-500/10 border border-green-500/20 mb-4">
+            <span class="text-green-400 text-xl">✅</span>
+            <div>
+                <p class="text-green-300 text-sm font-medium">Telegram sudah terhubung</p>
+                @if($user->telegram_username)<p class="text-dark-400 text-xs">@{{ $user->telegram_username }}</p>@endif
+            </div>
+        </div>
+        @else
+        <div class="p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 mb-4">
+            <p class="text-yellow-300 text-sm">Telegram belum terhubung. Ikuti langkah berikut:</p>
+        </div>
+        @endif
+        <ol class="text-dark-300 text-sm space-y-2 list-decimal list-inside">
+            <li>Buka bot Telegram: <span class="text-primary-400 font-medium">@{{ config('services.telegram.bot_username', 'FinanceAIBot') }}</span></li>
+            <li>Kirim perintah: <code class="text-xs bg-dark-700 px-2 py-0.5 rounded">/start</code></li>
+            <li>Salin Chat ID dari pesan pertama bot</li>
+            <li>Isi Chat ID Anda di bawah ini:</li>
+        </ol>
+        <form method="POST" action="{{ route('profile.update') }}" class="mt-4 flex gap-3">
+            @csrf @method('PUT')
+            <input type="text" name="telegram_id" value="{{ $user->telegram_id }}" class="input-field text-sm" placeholder="Chat ID Telegram Anda (misal: 123456789)">
+            <input type="hidden" name="name" value="{{ $user->name }}">
+            <input type="hidden" name="email" value="{{ $user->email }}">
+            <button type="submit" class="btn-primary text-sm flex-shrink-0">Simpan</button>
+        </form>
+    </div>
 </div>
 @endsection

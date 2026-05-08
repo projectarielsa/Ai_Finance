@@ -25,6 +25,11 @@ return [
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
     ],
+    'telegram' => [
+        'bot_token'      => env('TELEGRAM_BOT_TOKEN'),
+        'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
+        'bot_username'   => env('TELEGRAM_BOT_USERNAME'),
+    ],
     'whatsapp' => [
         'gateway_url'    => env('WHATSAPP_GATEWAY_URL'),
         'api_key'        => env('WHATSAPP_API_KEY'),

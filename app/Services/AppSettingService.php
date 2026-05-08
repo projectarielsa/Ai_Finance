@@ -60,6 +60,11 @@ class AppSettingService
         return $cred?->endpoint_url ?? config('services.groq.base_url', 'https://api.groq.com/openai/v1');
     }
 
+    public function getTelegramToken(): ?string
+    {
+        return config('services.telegram.bot_token');
+    }
+
     public function getWhatsappGateway(): ?WhatsappGateway
     {
         return Cache::remember('default_wa_gateway', 300, fn() => $this->getDefaultGateway());

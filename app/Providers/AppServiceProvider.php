@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Services\AppSettingService;
 use App\Services\GrokAIService;
 use App\Services\ReceiptScannerService;
+use App\Services\TelegramBotService;
+use App\Services\TelegramWebhookService;
 use App\Services\TransactionParserService;
 use App\Services\VoiceNoteTranscriptionService;
 use App\Services\WhatsAppService;
@@ -19,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(AppSettingService::class);
         $this->app->singleton(GrokAIService::class);
         $this->app->singleton(WhatsAppService::class);
+        $this->app->singleton(TelegramBotService::class);
 
         $this->app->bind(TransactionParserService::class, function ($app) {
             return new TransactionParserService(
@@ -41,6 +44,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(WhatsAppWebhookService::class, function ($app) {
             return new WhatsAppWebhookService(
                 $app->make(WhatsAppService::class),
+                $app->make(TransactionParserService::class),
+                $app->make(ReceiptScannerService::class),
+                $app->make(VoiceNoteTranscriptionService::class),
+                $app->make(GrokAIService::class)
+            );
+        });
+
+        $this->app->bind(TelegramWebhookService::class, function ($app) {
+            return new TelegramWebhookService(
+                $app->make(TelegramBotService::class),
                 $app->make(TransactionParserService::class),
                 $app->make(ReceiptScannerService::class),
                 $app->make(VoiceNoteTranscriptionService::class),

@@ -31,15 +31,15 @@
             <p class="px-3 pt-4 text-[10px] font-semibold uppercase tracking-widest text-dark-500 mb-1">Konfigurasi AI</p>
             <a href="{{ route('admin.api-credentials.index') }}" class="sidebar-link {{ request()->routeIs('admin.api-credentials.*') ? 'active' : '' }}">🔑 <span>API Credentials</span></a>
 
-            <p class="px-3 pt-4 text-[10px] font-semibold uppercase tracking-widest text-dark-500 mb-1">WhatsApp</p>
-            <a href="{{ route('admin.whatsapp-gateways.index') }}" class="sidebar-link {{ request()->routeIs('admin.whatsapp-gateways.*') ? 'active' : '' }}">📱 <span>WA Gateway</span></a>
+            <p class="px-3 pt-4 text-[10px] font-semibold uppercase tracking-widest text-dark-500 mb-1">Telegram Bot</p>
+            <a href="{{ route('admin.telegram.index') }}" class="sidebar-link {{ request()->routeIs('admin.telegram.*') ? 'active' : '' }}">🤖 <span>Telegram Bot</span></a>
 
             <p class="px-3 pt-4 text-[10px] font-semibold uppercase tracking-widest text-dark-500 mb-1">Pengaturan</p>
             <a href="{{ route('admin.settings.index') }}" class="sidebar-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">⚙️ <span>App Settings</span></a>
 
             <p class="px-3 pt-4 text-[10px] font-semibold uppercase tracking-widest text-dark-500 mb-1">Logs</p>
             <a href="{{ route('admin.ai-logs') }}"  class="sidebar-link {{ request()->routeIs('admin.ai-logs') ? 'active' : '' }}">🤖 <span>AI Logs</span></a>
-            <a href="{{ route('admin.wa-logs') }}"  class="sidebar-link {{ request()->routeIs('admin.wa-logs') ? 'active' : '' }}">💬 <span>WA Logs</span></a>
+            <a href="{{ route('admin.tg-logs') }}"  class="sidebar-link {{ request()->routeIs('admin.tg-logs') ? 'active' : '' }}">💬 <span>Telegram Logs</span></a>
         </nav>
 
         <div class="px-4 py-4 border-t border-dark-700/30 space-y-1">

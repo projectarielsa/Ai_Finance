@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\User;
-use App\Services\WhatsAppService;
+use App\Services\TelegramBotService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -16,22 +16,23 @@ class SendMonthlyReport implements ShouldQueue
 
     public function __construct(protected User $user, protected int $year, protected int $month) {}
 
-    public function handle(WhatsAppService $whatsApp): void
+    public function handle(TelegramBotService $telegram): void
     {
-        if (!$this->user->phone || !$this->user->whatsapp_notifications) return;
+        if (!$this->user->telegram_id) return;
 
-        $income  = $this->user->transactions()->completed()->byMonth($this->year, $this->month)->where('type','income')->sum('amount');
-        $expense = $this->user->transactions()->completed()->byMonth($this->year, $this->month)->where('type','expense')->sum('amount');
+        $income  = $this->user->transactions()->completed()->byMonth($this->year, $this->month)->where('type', 'income')->sum('amount');
+        $expense = $this->user->transactions()->completed()->byMonth($this->year, $this->month)->where('type', 'expense')->sum('amount');
         $balance = $this->user->total_balance;
         $period  = now()->setYear($this->year)->setMonth($this->month)->format('F Y');
+        $net     = $income - $expense;
 
-        $msg = "📊 *Laporan Keuangan Bulan {$period}*\n\n";
-        $msg .= "✅ Total Pemasukan: Rp" . number_format($income,0,',','.') . "\n";
-        $msg .= "❌ Total Pengeluaran: Rp" . number_format($expense,0,',','.') . "\n";
-        $msg .= "📈 Cashflow: Rp" . number_format($income - $expense,0,',','.') . "\n";
-        $msg .= "💰 Total Saldo: Rp" . number_format($balance,0,',','.') . "\n\n";
-        $msg .= "Lihat laporan lengkap di: " . config('app.url');
+        $msg  = "📊 *Laporan Keuangan {$period}*\n\n";
+        $msg .= "✅ Pemasukan: Rp" . number_format($income, 0, ',', '.') . "\n";
+        $msg .= "❌ Pengeluaran: Rp" . number_format($expense, 0, ',', '.') . "\n";
+        $msg .= ($net >= 0 ? "📈" : "📉") . " Cashflow: Rp" . number_format($net, 0, ',', '.') . "\n";
+        $msg .= "💰 Total Saldo: Rp" . number_format($balance, 0, ',', '.') . "\n\n";
+        $msg .= "Lihat laporan lengkap: " . config('app.url');
 
-        $whatsApp->sendMessage($this->user->phone, $msg);
+        $telegram->sendMessage($this->user->telegram_id, $msg);
     }
 }

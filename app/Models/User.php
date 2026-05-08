@@ -12,8 +12,8 @@ class User extends Authenticatable
     use HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
-        'name', 'email', 'password', 'phone', 'avatar', 'role',
-        'currency', 'language', 'whatsapp_notifications',
+        'name', 'email', 'password', 'phone', 'telegram_id', 'telegram_username',
+        'avatar', 'role', 'currency', 'language', 'whatsapp_notifications',
         'minimum_balance_warning', 'is_active', 'timezone',
     ];
 
@@ -53,6 +53,16 @@ class User extends Authenticatable
     public function whatsappMessages()
     {
         return $this->hasMany(WhatsappMessage::class);
+    }
+
+    public function telegramMessages()
+    {
+        return $this->hasMany(TelegramMessage::class);
+    }
+
+    public function hasTelegram(): bool
+    {
+        return !empty($this->telegram_id);
     }
 
     public function aiLogs()

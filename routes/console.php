@@ -11,11 +11,11 @@ Artisan::command('inspire', function () {
 // Schedule monthly reports on the 1st of each month at 08:00
 Schedule::command('finance:send-monthly-reports')->monthlyOn(1, '08:00');
 
-// Check minimum balance daily at 09:00
+// Check minimum balance daily at 09:00 - send Telegram notification
 Schedule::call(function () {
     \App\Models\User::where('is_active', true)
         ->where('whatsapp_notifications', true)
-        ->whereNotNull('phone')
+        ->whereNotNull('telegram_id')
         ->each(function ($user) {
             $lowBalanceWallets = $user->wallets()
                 ->where('is_active', true)
@@ -23,11 +23,13 @@ Schedule::call(function () {
                 ->where('balance', '<', $user->minimum_balance_warning)
                 ->get();
             if ($lowBalanceWallets->isNotEmpty()) {
-                $service = app(\App\Services\WhatsAppService::class);
+                $telegram = app(\App\Services\TelegramBotService::class);
                 foreach ($lowBalanceWallets as $wallet) {
-                    $service->sendMessage($user->phone,
-                        "⚠️ *Peringatan Saldo Rendah!*\nWallet {$wallet->name} hanya tersisa Rp" .
-                        number_format($wallet->balance, 0, ',', '.'));
+                    $telegram->sendMessage(
+                        $user->telegram_id,
+                        "⚠️ *Peringatan Saldo Rendah!*\nWallet *{$wallet->name}* hanya tersisa Rp" .
+                        number_format($wallet->balance, 0, ',', '.')
+                    );
                 }
             }
         });
