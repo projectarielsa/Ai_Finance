@@ -7,6 +7,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Category;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ReceiptScannerService
@@ -19,9 +20,24 @@ class ReceiptScannerService
      */
     public function processReceipt(string $imagePath, User $user, ?int $telegramMsgId = null): array
     {
-        // Read image
+        // Read image — coba Storage::disk dulu, fallback ke absolute path
         $imageContent = Storage::disk('public')->get($imagePath);
+
+        // Fallback: baca langsung via absolute path jika Storage::disk gagal
         if (!$imageContent) {
+            $absolutePath = storage_path('app/public/' . $imagePath);
+            if (file_exists($absolutePath)) {
+                $imageContent = file_get_contents($absolutePath);
+            }
+        }
+
+        if (!$imageContent) {
+            Log::error('ReceiptScanner: cannot read image', [
+                'imagePath'   => $imagePath,
+                'disk_exists' => Storage::disk('public')->exists($imagePath),
+                'abs_path'    => storage_path('app/public/' . $imagePath),
+                'abs_exists'  => file_exists(storage_path('app/public/' . $imagePath)),
+            ]);
             return ['success' => false, 'message' => '❌ Gambar tidak dapat dibaca. Coba kirim ulang.'];
         }
 

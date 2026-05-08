@@ -88,10 +88,23 @@ class TelegramBotService
             if (!$fileRes->successful()) return null;
 
             // Step 3: Save to local storage
-            $ext  = pathinfo($filePath, PATHINFO_EXTENSION) ?: 'bin';
+            $ext  = pathinfo($filePath, PATHINFO_EXTENSION) ?: 'jpg';
             $path = 'telegram-media/' . date('Y/m') . '/' . $filename . '.' . $ext;
+
+            // Simpan file
             Storage::disk('public')->put($path, $fileRes->body());
 
+            // Verifikasi file tersimpan
+            $saved = Storage::disk('public')->exists($path);
+            if (!$saved) {
+                // Fallback: simpan langsung via file_put_contents
+                $absolutePath = storage_path('app/public/' . $path);
+                @mkdir(dirname($absolutePath), 0775, true);
+                file_put_contents($absolutePath, $fileRes->body());
+                @chmod($absolutePath, 0644);
+            }
+
+            Log::info('Telegram downloadFile: saved', ['path' => $path, 'size' => strlen($fileRes->body())]);
             return $path;
         } catch (\Throwable $e) {
             Log::error('Telegram downloadFile error: ' . $e->getMessage());
