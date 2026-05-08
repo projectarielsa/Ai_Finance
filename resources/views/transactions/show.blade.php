@@ -47,9 +47,20 @@
         </dl>
 
         @if($transaction->attachment)
+        @php $attachmentUrl = asset('storage/' . $transaction->attachment); @endphp
         <div class="mt-5 pt-5 border-t border-dark-700/30">
             <p class="text-dark-400 text-xs mb-2">Lampiran Struk</p>
-            <img src="{{ $transaction->attachment_url }}" alt="struk" class="max-w-xs rounded-xl border border-dark-600/30">
+            <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener noreferrer" id="struk-link">
+                <img src="{{ $attachmentUrl }}"
+                     alt="struk"
+                     id="struk-img"
+                     class="max-w-xs rounded-xl border border-dark-600/30 hover:opacity-90 transition-opacity cursor-pointer"
+                     onerror="document.getElementById('struk-link').style.display='none'; document.getElementById('struk-fallback').style.display='block';">
+            </a>
+            <p id="struk-fallback" style="display:none;" class="text-dark-400 text-xs mt-2">
+                ⚠️ Gambar tidak dapat ditampilkan.
+                <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener noreferrer" class="text-blue-400 underline">Buka langsung ↗</a>
+            </p>
         </div>
         @endif
 
