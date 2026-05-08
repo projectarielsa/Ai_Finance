@@ -18,6 +18,10 @@ class TelegramWebhookService
     ) {}
 
     /**
+     * Process update — also auto-register telegram_id if user not linked yet.
+     */
+
+    /**
      * Main entry point — process Telegram update payload.
      */
     public function process(array $update): void
@@ -26,16 +30,36 @@ class TelegramWebhookService
             $message = $update['message'] ?? $update['edited_message'] ?? null;
             if (!$message) return;
 
-            $chatId   = $message['chat']['id'];
-            $from     = $message['from'] ?? [];
+            $chatId         = $message['chat']['id'];
+            $from           = $message['from'] ?? [];
             $telegramUserId = (string)($from['id'] ?? $chatId);
+            $username       = $from['username'] ?? null;
+            $text           = $message['text'] ?? '';
 
-            // Find user linked to this Telegram ID
+            // ── Handle /link command BEFORE user check ─────────────────────
+            // Allows unlinked users to connect their account
+            if (str_starts_with(trim($text), '/link')) {
+                $this->handleLinkCommand(trim($text), $telegramUserId, $username, $chatId);
+                return;
+            }
+
+            // ── Find user linked to this Telegram ID ───────────────────────
             $user = User::where('telegram_id', $telegramUserId)->first();
             if (!$user) {
+                $botUsername = config('services.telegram.bot_username', 'FinanceAIBot');
                 $this->telegram->sendMessage($chatId,
-                    "❌ *Akun belum terhubung*\n\nSilakan login ke aplikasi dan hubungkan akun Telegram Anda di menu *Profil → Hubungkan Telegram*.\n\nAtau daftar di: " . config('app.url'));
+                    "❌ *Akun belum terhubung*\n\n" .
+                    "Hubungkan akun Anda dengan perintah:\n" .
+                    "`/link email@anda.com`\n\n" .
+                    "Contoh:\n`/link john@gmail.com`\n\n" .
+                    "Atau login ke web: " . config('app.url') . "/profile"
+                );
                 return;
+            }
+
+            // Update username jika berubah
+            if ($username && $user->telegram_username !== $username) {
+                $user->update(['telegram_username' => $username]);
             }
 
             // Save inbound message
@@ -52,7 +76,6 @@ class TelegramWebhookService
             ]);
 
             // Route by message type
-            $type = $this->detectType($message);
             match(true) {
                 isset($message['text'])  => $this->handleText($message, $user, $chatId, $msgRecord),
                 isset($message['photo']) => $this->handlePhoto($message, $user, $chatId, $msgRecord),
@@ -64,7 +87,10 @@ class TelegramWebhookService
 
             $msgRecord->update(['status' => 'processed']);
         } catch (\Throwable $e) {
-            Log::error('TelegramWebhook processing error: ' . $e->getMessage(), ['update' => $update]);
+            Log::error('TelegramWebhook processing error: ' . $e->getMessage(), [
+                'update' => $update,
+                'trace'  => $e->getTraceAsString(),
+            ]);
         }
     }
 
@@ -171,6 +197,64 @@ class TelegramWebhookService
 
     // ── Commands ──────────────────────────────────────────────────────────────
 
+    /**
+     * Handle /link email@user.com — link Telegram ID to web account.
+     * This runs BEFORE user authentication check.
+     */
+    protected function handleLinkCommand(string $command, string $telegramUserId, ?string $username, int|string $chatId): void
+    {
+        // Parse email from command: /link email@example.com
+        $parts = explode(' ', $command, 2);
+        $email = trim($parts[1] ?? '');
+
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->telegram->sendMessage($chatId,
+                "⚠️ *Format salah!*\n\n" .
+                "Gunakan: `/link email@anda.com`\n\n" .
+                "Contoh: `/link john@gmail.com`"
+            );
+            return;
+        }
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            $this->telegram->sendMessage($chatId,
+                "❌ Email *{$email}* tidak ditemukan.\n\n" .
+                "Pastikan email sudah terdaftar di " . config('app.url')
+            );
+            return;
+        }
+
+        // Check if this Telegram ID already linked to another account
+        $existingUser = User::where('telegram_id', $telegramUserId)->where('id', '!=', $user->id)->first();
+        if ($existingUser) {
+            $this->telegram->sendMessage($chatId,
+                "⚠️ Telegram Anda sudah terhubung ke akun lain.\n" .
+                "Hubungi admin jika ini kesalahan."
+            );
+            return;
+        }
+
+        // Link this Telegram to the user account
+        $user->update([
+            'telegram_id'       => $telegramUserId,
+            'telegram_username' => $username,
+        ]);
+
+        $this->telegram->sendMessage($chatId,
+            "✅ *Akun berhasil dihubungkan!*\n\n" .
+            "Halo *{$user->name}*! 👋\n\n" .
+            "Sekarang Anda bisa:\n" .
+            "💬 Kirim teks transaksi: _beli kopi 25rb gopay_\n" .
+            "📸 Kirim foto struk\n" .
+            "🎤 Kirim voice note\n\n" .
+            "Ketik /help untuk panduan lengkap."
+        );
+
+        Log::info("Telegram linked: user #{$user->id} ({$user->email}) → Telegram ID {$telegramUserId}");
+    }
+
     protected function handleCommand(string $command, User $user, int|string $chatId): void
     {
         // Strip bot username suffix e.g. /start@MyBot → /start
@@ -179,7 +263,11 @@ class TelegramWebhookService
         switch ($cmd) {
             case '/start':
                 $this->telegram->sendMessage($chatId,
-                    "👋 Halo *{$user->name}*!\n\nSelamat datang di *Finance AI Bot*.\n\nKetik /help untuk panduan penggunaan.");
+                    "👋 Halo *{$user->name}*!\n\n" .
+                    "Selamat datang di *Finance AI Bot* 🤖\n\n" .
+                    "Saya siap membantu mencatat keuangan Anda!\n\n" .
+                    "Ketik /help untuk panduan lengkap."
+                );
                 break;
 
             case '/saldo':
@@ -250,6 +338,7 @@ class TelegramWebhookService
                 $help .= "/laporan — Laporan bulan ini\n";
                 $help .= "/topkategori — Top pengeluaran\n";
                 $help .= "/wallet — Daftar wallet\n";
+                $help .= "/link email — Hubungkan akun\n";
                 $help .= "/help — Bantuan ini\n\n";
                 $help .= "*Contoh pesan:*\n";
                 $help .= "• beli makan siang 35rb cash\n";
