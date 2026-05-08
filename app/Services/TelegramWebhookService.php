@@ -36,9 +36,9 @@ class TelegramWebhookService
             $username       = $from['username'] ?? null;
             $text           = $message['text'] ?? '';
 
-            // ── Handle /link command BEFORE user check ─────────────────────
+            // ── Handle /link & /unlink BEFORE user check ──────────────────
             // Allows unlinked users to connect their account
-            if (str_starts_with(trim($text), '/link')) {
+            if (str_starts_with(trim($text), '/link') || str_starts_with(trim($text), '/unlink')) {
                 $this->handleLinkCommand(trim($text), $telegramUserId, $username, $chatId);
                 return;
             }
@@ -200,24 +200,42 @@ class TelegramWebhookService
     /**
      * Handle /link email@user.com — link Telegram ID to web account.
      * This runs BEFORE user authentication check.
+     * Supports re-linking to a different account.
      */
     protected function handleLinkCommand(string $command, string $telegramUserId, ?string $username, int|string $chatId): void
     {
-        // Parse email from command: /link email@example.com
         $parts = explode(' ', $command, 2);
+
+        // /unlink — disconnect current account
+        if (strtolower(trim($parts[0])) === '/unlink') {
+            $existing = User::where('telegram_id', $telegramUserId)->first();
+            if (!$existing) {
+                $this->telegram->sendMessage($chatId, "ℹ️ Telegram Anda belum terhubung ke akun manapun.");
+                return;
+            }
+            $existing->update(['telegram_id' => null, 'telegram_username' => null]);
+            $this->telegram->sendMessage($chatId,
+                "✅ Akun *{$existing->name}* berhasil diputuskan.\n\n" .
+                "Untuk menghubungkan akun baru, kirim:\n`/link email@baru.com`"
+            );
+            Log::info("Telegram unlinked: user #{$existing->id} ({$existing->email})");
+            return;
+        }
+
+        // /link email@example.com
         $email = trim($parts[1] ?? '');
 
         if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->telegram->sendMessage($chatId,
                 "⚠️ *Format salah!*\n\n" .
                 "Gunakan: `/link email@anda.com`\n\n" .
-                "Contoh: `/link john@gmail.com`"
+                "Contoh: `/link john@gmail.com`\n\n" .
+                "Untuk ganti akun: `/unlink` dulu, lalu `/link` email baru."
             );
             return;
         }
 
         $user = User::where('email', $email)->first();
-
         if (!$user) {
             $this->telegram->sendMessage($chatId,
                 "❌ Email *{$email}* tidak ditemukan.\n\n" .
@@ -226,25 +244,28 @@ class TelegramWebhookService
             return;
         }
 
-        // Check if this Telegram ID already linked to another account
-        $existingUser = User::where('telegram_id', $telegramUserId)->where('id', '!=', $user->id)->first();
-        if ($existingUser) {
-            $this->telegram->sendMessage($chatId,
-                "⚠️ Telegram Anda sudah terhubung ke akun lain.\n" .
-                "Hubungi admin jika ini kesalahan."
-            );
-            return;
+        // If this Telegram is already linked to a DIFFERENT account → auto unlink old first
+        $oldUser = User::where('telegram_id', $telegramUserId)
+                       ->where('id', '!=', $user->id)
+                       ->first();
+        if ($oldUser) {
+            // Auto-unlink from old account
+            $oldUser->update(['telegram_id' => null, 'telegram_username' => null]);
+            Log::info("Telegram auto-unlinked from user #{$oldUser->id} to re-link to #{$user->id}");
         }
 
-        // Link this Telegram to the user account
+        // Link to new account
         $user->update([
             'telegram_id'       => $telegramUserId,
             'telegram_username' => $username,
         ]);
 
+        $prefix = $oldUser ? "🔄 Akun berhasil *diganti*!" : "✅ Akun berhasil *dihubungkan*!";
+
         $this->telegram->sendMessage($chatId,
-            "✅ *Akun berhasil dihubungkan!*\n\n" .
+            "{$prefix}\n\n" .
             "Halo *{$user->name}*! 👋\n\n" .
+            ($oldUser ? "Sebelumnya: _{$oldUser->name}_ → Sekarang: _{$user->name}_\n\n" : "") .
             "Sekarang Anda bisa:\n" .
             "💬 Kirim teks transaksi: _beli kopi 25rb gopay_\n" .
             "📸 Kirim foto struk\n" .
@@ -338,7 +359,8 @@ class TelegramWebhookService
                 $help .= "/laporan — Laporan bulan ini\n";
                 $help .= "/topkategori — Top pengeluaran\n";
                 $help .= "/wallet — Daftar wallet\n";
-                $help .= "/link email — Hubungkan akun\n";
+                $help .= "/link email — Hubungkan/ganti akun\n";
+                $help .= "/unlink — Putuskan akun dari bot\n";
                 $help .= "/help — Bantuan ini\n\n";
                 $help .= "*Contoh pesan:*\n";
                 $help .= "• beli makan siang 35rb cash\n";
