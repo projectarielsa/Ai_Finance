@@ -81,12 +81,11 @@ class TransactionParserService
         }
 
         // ── Balance check ─────────────────────────────────────────────────
+        // We allow recording even if balance is insufficient (e.g. wallet not yet topped up)
+        // Balance will go negative — user gets a warning in the success message.
+        $balanceWarning = false;
         if (in_array($type, ['expense', 'transfer']) && !$wallet->hasSufficientBalance($amount)) {
-            return [
-                'success'       => false,
-                'balance_error' => true,
-                'message'       => "⚠️ Saldo *{$wallet->name}* tidak cukup.\nSaldo: Rp" . number_format($wallet->balance, 0, ',', '.') . "\nDibutuhkan: Rp" . number_format($amount, 0, ',', '.'),
-            ];
+            $balanceWarning = true;
         }
 
         // ── Find category ─────────────────────────────────────────────────
@@ -126,7 +125,7 @@ class TransactionParserService
             'transaction' => $transaction,
             'wallet'      => $wallet,
             'parsed'      => $parsed,
-            'message'     => $this->buildSuccessMessage($transaction, $wallet, $targetWallet, $category),
+            'message'     => $this->buildSuccessMessage($transaction, $wallet, $targetWallet, $category, $balanceWarning),
         ];
     }
 
@@ -178,22 +177,27 @@ class TransactionParserService
         ) ?? $categories->where('type', $type)->first();
     }
 
-    protected function buildSuccessMessage(Transaction $t, Wallet $wallet, ?Wallet $targetWallet, ?Category $category): string
+    protected function buildSuccessMessage(Transaction $t, Wallet $wallet, ?Wallet $targetWallet, ?Category $category, bool $balanceWarning = false): string
     {
         $amount = 'Rp' . number_format($t->amount, 0, ',', '.');
         $date   = $t->transaction_date->format('d M Y');
 
         if ($t->type === 'transfer') {
-            return "🔄 *Transfer berhasil dicatat!*\nDari: {$wallet->name}\nKe: {$targetWallet?->name}\nJumlah: {$amount}\nTanggal: {$date}";
+            $msg = "🔄 *Transfer berhasil dicatat!*\nDari: {$wallet->name}\nKe: {$targetWallet?->name}\nJumlah: {$amount}\nTanggal: {$date}";
+        } else {
+            $icon     = $t->type === 'income' ? '💰' : '💸';
+            $typeText = $t->type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+            $msg      = "{$icon} *{$typeText} berhasil dicatat!*\nJumlah: {$amount}\nWallet: {$wallet->name}";
+            if ($category) $msg .= "\nKategori: {$category->name}";
+            if ($t->description) $msg .= "\nDeskripsi: {$t->description}";
+            if ($t->merchant) $msg .= "\nMerchant: {$t->merchant}";
+            $msg .= "\nTanggal: {$date}";
         }
 
-        $icon     = $t->type === 'income' ? '💰' : '💸';
-        $typeText = $t->type === 'income' ? 'Pemasukan' : 'Pengeluaran';
-        $msg      = "{$icon} *{$typeText} berhasil dicatat!*\nJumlah: {$amount}\nWallet: {$wallet->name}";
-        if ($category) $msg .= "\nKategori: {$category->name}";
-        if ($t->description) $msg .= "\nDeskripsi: {$t->description}";
-        if ($t->merchant) $msg .= "\nMerchant: {$t->merchant}";
-        $msg .= "\nTanggal: {$date}";
+        if ($balanceWarning) {
+            $saldo = 'Rp' . number_format($wallet->fresh()->balance, 0, ',', '.');
+            $msg .= "\n\n⚠️ *Perhatian:* Saldo {$wallet->name} sekarang {$saldo}. Segera top up!";
+        }
 
         return $msg;
     }
