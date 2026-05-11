@@ -63,11 +63,42 @@ class WalletController extends Controller
     public function show(Wallet $wallet)
     {
         $this->authorizeWallet($wallet);
+
         $transactions = $wallet->transactions()
             ->with(['category', 'targetWallet'])
             ->orderBy('transaction_date', 'desc')
             ->paginate(20);
-        return view('wallets.show', compact('wallet', 'transactions'));
+
+        // Monthly chart (income vs expense for this wallet) — single query
+        $months    = 6;
+        $startDate = now()->subMonths($months - 1)->startOfMonth();
+
+        $chartRows = $wallet->transactions()
+            ->completed()
+            ->whereIn('type', ['income', 'expense'])
+            ->where('transaction_date', '>=', $startDate)
+            ->selectRaw('YEAR(transaction_date) as y, MONTH(transaction_date) as m, type, SUM(amount) as total')
+            ->groupBy('y', 'm', 'type')
+            ->get()
+            ->groupBy(fn($r) => "{$r->y}-{$r->m}");
+
+        $chartLabels  = [];
+        $chartIncome  = [];
+        $chartExpense = [];
+
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $date  = now()->subMonths($i);
+            $key   = $date->year . '-' . $date->month;
+            $group = $chartRows->get($key, collect());
+
+            $chartLabels[]  = $date->format('M Y');
+            $chartIncome[]  = (float) ($group->firstWhere('type', 'income')?->total ?? 0);
+            $chartExpense[] = (float) ($group->firstWhere('type', 'expense')?->total ?? 0);
+        }
+
+        $chartData = ['labels' => $chartLabels, 'income' => $chartIncome, 'expense' => $chartExpense];
+
+        return view('wallets.show', compact('wallet', 'transactions', 'chartData'));
     }
 
     public function edit(Wallet $wallet)

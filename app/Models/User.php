@@ -55,6 +55,21 @@ class User extends Authenticatable
         return $this->hasMany(TelegramMessage::class);
     }
 
+    public function budgets()
+    {
+        return $this->hasMany(\App\Models\Budget::class);
+    }
+
+    public function goals()
+    {
+        return $this->hasMany(\App\Models\Goal::class);
+    }
+
+    public function recurringTransactions()
+    {
+        return $this->hasMany(\App\Models\RecurringTransaction::class);
+    }
+
     public function hasTelegram(): bool
     {
         return !empty($this->telegram_id);

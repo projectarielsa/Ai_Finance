@@ -114,6 +114,15 @@ class TransactionParserService
                 }
 
                 // ── Create transaction ─────────────────────────────────────
+                // ── Deteksi duplikat (transaksi sama dalam 5 menit terakhir) ──
+                $duplicateOf = Transaction::where('user_id', $user->id)
+                    ->where('type', $type)
+                    ->where('amount', $amount)
+                    ->where('wallet_id', $wallet->id)
+                    ->where('status', 'completed')
+                    ->where('created_at', '>=', now()->subMinutes(5))
+                    ->value('id');
+
                 $transaction = Transaction::create([
                     'user_id'          => $user->id,
                     'wallet_id'        => $wallet->id,
@@ -129,6 +138,8 @@ class TransactionParserService
                     'ai_raw_response'  => json_encode($parsed),
                     'ai_parsed_data'   => $parsed,
                     'status'           => 'completed',
+                    'is_duplicate'     => $duplicateOf !== null,
+                    'duplicate_of'     => $duplicateOf,
                 ]);
 
                 // ── Update wallet balances ─────────────────────────────────
@@ -147,6 +158,7 @@ class TransactionParserService
                     'wallet'      => $wallet,
                     'parsed'      => $parsed,
                     'message'     => $this->buildSuccessMessage($transaction, $wallet, $targetWallet, $category),
+                    'is_duplicate'=> $duplicateOf !== null,
                 ];
             });
         } catch (\Throwable $e) {
@@ -206,8 +218,10 @@ class TransactionParserService
         $amount = 'Rp' . number_format($t->amount, 0, ',', '.');
         $date   = $t->transaction_date->format('d M Y');
 
+        $dupWarning = $t->is_duplicate ? "\n\n⚠️ _Terdeteksi sebagai kemungkinan duplikat. Cek di web jika perlu dihapus._" : '';
+
         if ($t->type === 'transfer') {
-            return "🔄 *Transfer berhasil dicatat!*\nDari: {$wallet->name}\nKe: {$targetWallet?->name}\nJumlah: {$amount}\nTanggal: {$date}";
+            return "🔄 *Transfer berhasil dicatat!*\nDari: {$wallet->name}\nKe: {$targetWallet?->name}\nJumlah: {$amount}\nTanggal: {$date}{$dupWarning}";
         }
 
         $icon     = $t->type === 'income' ? '💰' : '💸';
@@ -215,8 +229,9 @@ class TransactionParserService
         $msg      = "{$icon} *{$typeText} berhasil dicatat!*\nJumlah: {$amount}\nWallet: {$wallet->name}";
         if ($category) $msg .= "\nKategori: {$category->name}";
         if ($t->description) $msg .= "\nDeskripsi: {$t->description}";
-        if ($t->merchant)   $msg .= "\nMerchant: {$t->merchant}";
+        if ($t->merchant)    $msg .= "\nMerchant: {$t->merchant}";
         $msg .= "\nTanggal: {$date}";
+        $msg .= $dupWarning;
 
         return $msg;
     }

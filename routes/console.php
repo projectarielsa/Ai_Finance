@@ -11,6 +11,12 @@ Artisan::command('inspire', function () {
 // Send monthly reports on the 1st of each month at 08:00 via Telegram
 Schedule::command('finance:send-monthly-reports')->monthlyOn(1, '08:00');
 
+// Process recurring transactions — run every day at 07:00
+Schedule::job(new \App\Jobs\ProcessRecurringTransactions)->dailyAt('07:00')->name('process-recurring');
+
+// Check budget alerts — run every 4 hours
+Schedule::job(new \App\Jobs\CheckBudgetAlerts)->everyFourHours()->name('check-budget-alerts');
+
 // Check minimum balance daily at 09:00 — send Telegram notification
 Schedule::call(function () {
     \App\Models\User::where('is_active', true)

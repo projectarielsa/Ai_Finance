@@ -107,11 +107,16 @@
                             @endif
                         </td>
                         <td>
-                            @php $src=['manual'=>'✋','whatsapp_text'=>'💬','whatsapp_image'=>'📸','whatsapp_voice'=>'🎤','import'=>'📥'] @endphp
+                            @php $src=['manual'=>'✋','telegram_text'=>'💬','telegram_image'=>'📸','telegram_voice'=>'🎤','import'=>'📥'] @endphp
                             <span title="{{ $tx->source }}" class="text-sm">{{ $src[$tx->source] ?? '?' }}</span>
                             @if($tx->ai_confidence)<span class="text-xs text-dark-500 ml-1">{{ round($tx->ai_confidence) }}%</span>@endif
                         </td>
-                        <td><span class="badge badge-{{ $tx->type }}">{{ ucfirst($tx->type) }}</span></td>
+                        <td>
+                            <span class="badge badge-{{ $tx->type }}">{{ ucfirst($tx->type) }}</span>
+                            @if($tx->is_duplicate)
+                                <span class="badge bg-yellow-500/15 text-yellow-400 border-yellow-500/25 text-xs ml-1" title="Kemungkinan duplikat">⚠️ dup</span>
+                            @endif
+                        </td>
                         <td class="text-right font-semibold whitespace-nowrap {{ $tx->type==='income'?'text-green-400':($tx->type==='expense'?'text-red-400':'text-blue-400') }}">
                             {{ $tx->type==='income'?'+':($tx->type==='expense'?'-':'') }}Rp{{ number_format($tx->amount,0,',','.') }}
                         </td>

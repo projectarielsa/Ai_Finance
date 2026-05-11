@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Transaction;
 use App\Models\Wallet;
+use App\Models\Budget;
+use App\Models\Goal;
 use App\Services\GrokAIService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -56,10 +58,26 @@ class DashboardController extends Controller
         $comparisonPct    = $prevMonthExpense > 0 ? round((($monthlyExpense - $prevMonthExpense) / $prevMonthExpense) * 100, 1) : 0;
         $aiInsight        = $this->getAiInsight($user, $monthlyIncome, $monthlyExpense, $topCategories, $comparisonPct);
 
+        // Budgets this month (with spent)
+        $budgets = Budget::where('user_id', $user->id)
+            ->forMonth($year, $month)
+            ->with('category')
+            ->get()
+            ->map(fn($b) => $b->append(['spent', 'percentage', 'remaining']))
+            ->sortByDesc('percentage')
+            ->take(4);
+
+        // Active goals
+        $goals = Goal::where('user_id', $user->id)
+            ->active()
+            ->orderBy('target_date')
+            ->take(3)
+            ->get();
+
         return view('dashboard.index', compact(
             'wallets', 'totalBalance', 'monthlyIncome', 'monthlyExpense',
             'monthlyTransfer', 'netCashflow', 'recentTransactions',
-            'topCategories', 'chartData', 'aiInsight'
+            'topCategories', 'chartData', 'aiInsight', 'budgets', 'goals'
         ));
     }
 
@@ -72,15 +90,30 @@ class DashboardController extends Controller
 
     protected function getChartData($user, int $months): array
     {
+        $startDate = now()->subMonths($months - 1)->startOfMonth();
+
+        // Single query grouped by year+month — no more N+1 loop!
+        $rows = $user->transactions()
+            ->completed()
+            ->whereIn('type', ['income', 'expense'])
+            ->where('transaction_date', '>=', $startDate)
+            ->selectRaw('YEAR(transaction_date) as y, MONTH(transaction_date) as m, type, SUM(amount) as total')
+            ->groupBy('y', 'm', 'type')
+            ->get()
+            ->groupBy(fn($r) => "{$r->y}-{$r->m}");
+
         $labels  = [];
         $income  = [];
         $expense = [];
 
         for ($i = $months - 1; $i >= 0; $i--) {
-            $date = now()->subMonths($i);
-            $labels[] = $date->format('M Y');
-            $income[]  = (float)$user->transactions()->completed()->byMonth($date->year, $date->month)->where('type', 'income')->sum('amount');
-            $expense[] = (float)$user->transactions()->completed()->byMonth($date->year, $date->month)->where('type', 'expense')->sum('amount');
+            $date  = now()->subMonths($i);
+            $key   = $date->year . '-' . $date->month;
+            $group = $rows->get($key, collect());
+
+            $labels[]  = $date->format('M Y');
+            $income[]  = (float) ($group->firstWhere('type', 'income')?->total ?? 0);
+            $expense[] = (float) ($group->firstWhere('type', 'expense')?->total ?? 0);
         }
 
         return compact('labels', 'income', 'expense');

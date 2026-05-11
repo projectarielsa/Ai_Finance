@@ -8,8 +8,12 @@ use App\Http\Controllers\Admin\TelegramSettingController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\BudgetController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GoalController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RecurringTransactionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\TransactionController;
@@ -60,6 +64,27 @@ Route::middleware('auth')->group(function () {
     Route::get('reports',          [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/pdf',      [ReportController::class, 'exportPdf'])->name('reports.pdf');
     Route::get('reports/excel',    [ReportController::class, 'exportExcel'])->name('reports.excel');
+
+    // Categories
+    Route::resource('categories', CategoryController::class)->except(['show']);
+
+    // Budgets
+    Route::get('budgets',               [BudgetController::class, 'index'])->name('budgets.index');
+    Route::post('budgets',              [BudgetController::class, 'store'])->name('budgets.store');
+    Route::put('budgets/{budget}',      [BudgetController::class, 'update'])->name('budgets.update');
+    Route::delete('budgets/{budget}',   [BudgetController::class, 'destroy'])->name('budgets.destroy');
+
+    // Recurring Transactions
+    Route::resource('recurring', RecurringTransactionController::class)->except(['show']);
+    Route::post('recurring/{recurring}/execute', [RecurringTransactionController::class, 'executeNow'])->name('recurring.execute');
+
+    // Goals
+    Route::get('goals',                         [GoalController::class, 'index'])->name('goals.index');
+    Route::post('goals',                         [GoalController::class, 'store'])->name('goals.store');
+    Route::get('goals/{goal}/edit',              [GoalController::class, 'edit'])->name('goals.edit');
+    Route::put('goals/{goal}',                   [GoalController::class, 'update'])->name('goals.update');
+    Route::post('goals/{goal}/add-funds',        [GoalController::class, 'addFunds'])->name('goals.add-funds');
+    Route::delete('goals/{goal}',                [GoalController::class, 'destroy'])->name('goals.destroy');
 });
 
 // ─── Admin Routes ─────────────────────────────────────────────────────────────
