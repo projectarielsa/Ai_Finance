@@ -192,6 +192,72 @@
         </div>
     </div>
 
+    {{-- ── BUDGET & GOALS ROW ───────────────────────────── --}}
+    @if($budgets->count() || $goals->count())
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+        {{-- Budget Overview --}}
+        @if($budgets->count())
+        <div class="glass-card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-white font-semibold">Budget Bulan Ini</h3>
+                <a href="{{ route('budgets.index') }}" class="text-primary-400 text-xs hover:text-primary-300">Kelola →</a>
+            </div>
+            <div class="space-y-3">
+                @foreach($budgets as $b)
+                @php
+                    $pct      = $b->percentage;
+                    $barColor = $pct >= 100 ? 'bg-red-500' : ($pct >= 80 ? 'bg-yellow-500' : 'bg-green-500');
+                @endphp
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-dark-200">{{ $b->category?->name ?? 'Umum' }}</span>
+                        <span class="{{ $pct >= 100 ? 'text-red-400' : ($pct >= 80 ? 'text-yellow-400' : 'text-dark-400') }}">{{ $pct }}%</span>
+                    </div>
+                    <div class="h-2 bg-dark-700 rounded-full overflow-hidden">
+                        <div class="{{ $barColor }} h-full rounded-full" style="width:{{ min(100,$pct) }}%"></div>
+                    </div>
+                    <p class="text-dark-500 text-xs mt-0.5">Rp{{ number_format($b->spent,0,',','.') }} / Rp{{ number_format($b->limit_amount,0,',','.') }}</p>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        {{-- Goals Overview --}}
+        @if($goals->count())
+        <div class="glass-card p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-white font-semibold">Tujuan Keuangan</h3>
+                <a href="{{ route('goals.index') }}" class="text-primary-400 text-xs hover:text-primary-300">Lihat semua →</a>
+            </div>
+            <div class="space-y-3">
+                @foreach($goals as $g)
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-2">
+                            <span>{{ $g->icon }}</span>
+                            <span class="text-dark-200 text-sm">{{ $g->title }}</span>
+                        </div>
+                        <span class="text-dark-400 text-xs">{{ $g->percentage }}%</span>
+                    </div>
+                    <div class="h-2 bg-dark-700 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full transition-all"
+                             style="width:{{ $g->percentage }}%; background:{{ $g->color }}"></div>
+                    </div>
+                    <p class="text-dark-500 text-xs mt-0.5">
+                        Rp{{ number_format($g->current_amount,0,',','.') }} / Rp{{ number_format($g->target_amount,0,',','.') }}
+                        @if($g->target_date) · {{ $g->target_date->format('d M Y') }}@endif
+                    </p>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+    </div>
+    @endif
+
 </div>
 @endsection
 
