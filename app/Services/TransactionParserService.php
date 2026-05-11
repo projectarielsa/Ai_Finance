@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\BigTransactionAlertJob;
 use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\User;
@@ -169,6 +170,22 @@ class TransactionParserService
         }
 
         return $result;
+    }
+
+    /**
+     * Dispatch BigTransactionAlertJob jika transaksi melebihi threshold user.
+     * Dipanggil setelah transaksi berhasil disimpan.
+     */
+    public function maybeTriggerBigAlert(Transaction $transaction, User $user): void
+    {
+        if (!$user->big_transaction_alert_enabled) return;
+        if (!$user->telegram_id)                   return;
+        if (!in_array($transaction->type, ['expense', 'transfer'])) return;
+        if ($transaction->amount < $user->big_transaction_threshold) return;
+
+        BigTransactionAlertJob::dispatch($transaction->id, $user->id)
+            ->onQueue('notifications')
+            ->delay(now()->addSeconds(2)); // delay 2s agar sukses message terkirim dulu
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

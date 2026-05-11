@@ -15,6 +15,10 @@ class User extends Authenticatable
         'name', 'email', 'password', 'phone', 'telegram_id', 'telegram_username',
         'avatar', 'role', 'currency', 'language', 'telegram_notifications',
         'minimum_balance_warning', 'is_active', 'timezone',
+        // Reminder settings
+        'daily_reminder_enabled', 'daily_reminder_time',
+        'weekly_summary_enabled',
+        'big_transaction_alert_enabled', 'big_transaction_threshold',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -22,11 +26,15 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at'      => 'datetime',
-            'password'               => 'hashed',
-            'telegram_notifications' => 'boolean',
-            'is_active'              => 'boolean',
-            'minimum_balance_warning'=> 'decimal:2',
+            'email_verified_at'               => 'datetime',
+            'password'                        => 'hashed',
+            'telegram_notifications'          => 'boolean',
+            'is_active'                       => 'boolean',
+            'minimum_balance_warning'         => 'decimal:2',
+            'daily_reminder_enabled'          => 'boolean',
+            'weekly_summary_enabled'          => 'boolean',
+            'big_transaction_alert_enabled'   => 'boolean',
+            'big_transaction_threshold'       => 'decimal:2',
         ];
     }
 
