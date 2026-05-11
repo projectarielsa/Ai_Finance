@@ -626,12 +626,14 @@ class TelegramWebhookService
                 return;
             }
 
+            // cancelScan bisa return false jika ENUM cancelled belum ada di DB,
+            // tapi tetap tampilkan pesan berhasil ke user karena needs_wallet_confirmation sudah false
             $this->receiptScanner->cancelScan($receiptScan);
 
             $this->telegram->editMessageText(
                 $chatId,
                 $msgId,
-                "🚫 *Transaksi dibatalkan.*\n\n_Struk tidak dicatat. Kirim ulang foto jika ingin mencoba lagi._"
+                "Transaksi dibatalkan.\n\nStruk tidak dicatat. Kirim ulang foto jika ingin mencoba lagi."
             );
             return;
         }

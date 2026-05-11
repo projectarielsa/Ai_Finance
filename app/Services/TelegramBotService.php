@@ -189,21 +189,76 @@ class TelegramBotService
 
     /**
      * Edit an existing message text (e.g. to remove inline keyboard after selection).
+     * Always removes the inline keyboard by passing empty reply_markup.
+     * Falls back to plain text if Markdown parse fails.
      */
     public function editMessageText(int|string $chatId, int $messageId, string $text): bool
     {
-        try {
-            $response = Http::timeout(10)->post("{$this->baseUrl}/editMessageText", [
-                'chat_id'      => $chatId,
-                'message_id'   => $messageId,
-                'text'         => $text,
-                'parse_mode'   => 'Markdown',
-                'reply_markup' => json_encode(['inline_keyboard' => []]), // Remove keyboard
-            ]);
-            return $response->successful();
-        } catch (\Throwable $e) {
-            Log::error('Telegram editMessageText error: ' . $e->getMessage());
+        if (empty($this->token)) {
+            Log::warning('Telegram editMessageText: bot token not configured');
             return false;
+        }
+
+        $payload = [
+            'chat_id'      => $chatId,
+            'message_id'   => $messageId,
+            'text'         => $text,
+            'parse_mode'   => 'Markdown',
+            'reply_markup' => json_encode(['inline_keyboard' => []]), // remove keyboard
+        ];
+
+        try {
+            $response = Http::timeout(10)->post("{$this->baseUrl}/editMessageText", $payload);
+
+            if ($response->successful()) {
+                return true;
+            }
+
+            $errorBody = $response->json();
+            $errorDesc = $errorBody['description'] ?? '';
+
+            Log::warning('Telegram editMessageText failed', [
+                'status'      => $response->status(),
+                'description' => $errorDesc,
+                'chat_id'     => $chatId,
+                'message_id'  => $messageId,
+            ]);
+
+            // Fallback: retry without parse_mode (plain text)
+            if (str_contains($errorDesc, "can't parse")
+                || str_contains($errorDesc, 'parse entities')
+                || str_contains($errorDesc, 'MESSAGE_NOT_MODIFIED')) {
+
+                $plainPayload = $payload;
+                unset($plainPayload['parse_mode']);
+                $plainPayload['text'] = $this->stripMarkdown($text);
+
+                $retry = Http::timeout(10)->post("{$this->baseUrl}/editMessageText", $plainPayload);
+                if ($retry->successful()) {
+                    return true;
+                }
+                Log::error('Telegram editMessageText plain retry also failed: ' . $retry->body());
+                return false;
+            }
+
+            // If the message content is identical Telegram returns 400 "message is not modified"
+            // This is not an actual error — treat it as success
+            if (str_contains($errorDesc, 'message is not modified')) {
+                return true;
+            }
+
+            return false;
+        } catch (\Throwable $e) {
+            Log::error('Telegram editMessageText exception: ' . $e->getMessage());
+
+            // Last-resort: send a new message instead of editing
+            try {
+                $this->sendMessage($chatId, $text);
+                return true;
+            } catch (\Throwable $e2) {
+                Log::error('Telegram editMessageText last-resort sendMessage also failed: ' . $e2->getMessage());
+                return false;
+            }
         }
     }
 

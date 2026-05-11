@@ -111,12 +111,28 @@ class ReceiptScannerService
      * Cancel a pending receipt scan — user tidak mau mencatat transaksi.
      * Mark receipt scan as 'cancelled', tidak ada transaksi yang dibuat.
      */
-    public function cancelScan(ReceiptScan $receiptScan): void
+    public function cancelScan(ReceiptScan $receiptScan): bool
     {
-        $receiptScan->update([
-            'status'                    => 'cancelled',
-            'needs_wallet_confirmation' => false,
-        ]);
+        try {
+            $receiptScan->update([
+                'status'                    => 'cancelled',
+                'needs_wallet_confirmation' => false,
+            ]);
+
+            Log::info("ReceiptScan #{$receiptScan->id} cancelled by user.");
+            return true;
+        } catch (\Throwable $e) {
+            // Kemungkinan ENUM 'cancelled' belum ada di database → fallback ke 'failed'
+            Log::error("cancelScan failed for ReceiptScan #{$receiptScan->id}: " . $e->getMessage());
+            try {
+                $receiptScan->update([
+                    'needs_wallet_confirmation' => false,
+                ]);
+            } catch (\Throwable $e2) {
+                Log::error("cancelScan fallback also failed: " . $e2->getMessage());
+            }
+            return false;
+        }
     }
 
     /**
