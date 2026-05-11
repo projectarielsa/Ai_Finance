@@ -29,18 +29,13 @@ return new class extends Migration
             $table->index(['chat_id', 'created_at']);
         });
 
-        // Add telegram_id column to users table
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('telegram_id', 50)->nullable()->unique()->after('phone');
-            $table->string('telegram_username', 100)->nullable()->after('telegram_id');
-        });
+        // Note: telegram_id and telegram_username columns are already defined
+        // in the create_users_table migration (0001_01_01_000000)
     }
 
     public function down(): void
     {
         Schema::dropIfExists('telegram_messages');
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['telegram_id', 'telegram_username']);
-        });
+        // Note: telegram_id and telegram_username are dropped with the users table itself
     }
 };
