@@ -102,13 +102,13 @@ class TelegramWebhookService
     {
         $text = trim($message['text']);
 
-        // Telegram bot commands
+        // ── 1. Bot commands (/saldo, /rekap, dll) ────────────────────────
         if (str_starts_with($text, '/')) {
             $this->handleCommand($text, $user, $chatId);
             return;
         }
 
-        // Check pending receipt waiting for wallet confirmation
+        // ── 2. Pending receipt waiting for wallet confirmation ────────────
         $pendingScan = \App\Models\ReceiptScan::where('user_id', $user->id)
             ->where('needs_wallet_confirmation', true)
             ->where('status', 'processed')
@@ -120,29 +120,164 @@ class TelegramWebhookService
             return;
         }
 
-        // ── Cek apakah ini pertanyaan/permintaan analisa DULU ────────────────
-        // Jika ya, langsung jawab via AI tanpa coba parse sebagai transaksi
-        // Ini mencegah AI membuang token untuk parseTransaction yang pasti gagal
-        if ($this->looksLikeQuestion($text)) {
-            $context = $this->buildUserContext($user);
-            $reply   = $this->grokAI->answerFinancialQuestion($text, $user, $context);
-            $this->telegram->sendMessage($chatId, $reply);
+        // ── 3. Fast-path: cek saldo / info tanpa AI ───────────────────────
+        // Tangani permintaan umum sehari-hari langsung dari kode — cepat & hemat token
+        $fastReply = $this->handleFastQuery($text, $user);
+        if ($fastReply !== null) {
+            $this->telegram->sendMessage($chatId, $fastReply);
             return;
         }
 
-        // ── Parse as financial transaction ────────────────────────────────
+        // ── 4. Coba parse sebagai transaksi keuangan ──────────────────────
         $result = $this->transactionParser->parseAndSave($text, $user, null, 'telegram_text');
-        $reply  = $result['message'] ?? ($result['success'] ? '✅ Transaksi dicatat!' : '❌ Tidak dikenali sebagai transaksi keuangan.');
 
-        if (!$result['success'] && ($result['balance_error'] ?? false)) {
-            $reply = "⚠️ " . $result['message'];
-        }
-
-        $this->telegram->sendMessage($chatId, $reply);
-
-        if (($result['success'] ?? false) && isset($result['transaction'])) {
+        if ($result['success']) {
+            $this->telegram->sendMessage($chatId, $result['message']);
             $msgRecord->update(['transaction_id' => $result['transaction']?->id]);
+            return;
         }
+
+        if ($result['balance_error'] ?? false) {
+            $this->telegram->sendMessage($chatId, $result['message']);
+            return;
+        }
+
+        // ── 5. Fallback: jawab via AI chat (bukan error) ──────────────────
+        // Pesan apapun yang tidak dikenali sebagai transaksi → tanya AI
+        // Ini membuat bot responsif terhadap segala bentuk pertanyaan natural
+        $context = $this->buildUserContext($user);
+        $reply   = $this->grokAI->answerFinancialQuestion($text, $user, $context);
+        $this->telegram->sendMessage($chatId, $reply);
+    }
+
+    /**
+     * Fast-path handler: jawab permintaan umum TANPA memanggil AI.
+     * Hemat token & respons lebih cepat untuk query yang sering dipakai.
+     * Return null jika tidak cocok (lanjut ke flow berikutnya).
+     */
+    protected function handleFastQuery(string $text, User $user): ?string
+    {
+        $lower = strtolower(trim($text));
+
+        // ── Cek saldo ─────────────────────────────────────────────────────
+        $saldoKeywords = [
+            'saldo', 'balance', 'duit', 'uang', 'tabungan',
+            'cek saldo', 'lihat saldo', 'berapa saldo', 'saldo ku', 'saldoku',
+            'berapa uang', 'ada berapa', 'berapa duit', 'berapa tabungan',
+        ];
+        foreach ($saldoKeywords as $kw) {
+            if (str_contains($lower, $kw)) {
+                $wallets = $user->wallets()->where('is_active', true)->orderBy('sort_order')->get();
+                if ($wallets->isEmpty()) {
+                    return "💳 Kamu belum punya wallet aktif. Tambahkan di " . config('app.url') . "/wallets";
+                }
+                $lines = ["💰 *Saldo Wallet Kamu:*\n"];
+                foreach ($wallets as $w) {
+                    $lines[] = "• *{$w->name}*: Rp" . number_format($w->balance, 0, ',', '.');
+                }
+                $total = $wallets->where('include_in_total', true)->sum('balance');
+                $lines[] = "\n*Total:* Rp" . number_format($total, 0, ',', '.');
+                return implode("\n", $lines);
+            }
+        }
+
+        // ── Cek pengeluaran / pemasukan bulan ini ─────────────────────────
+        $expenseKeywords = [
+            'pengeluaran', 'pengeluaran bulan ini', 'habis berapa', 'keluar berapa',
+            'udah keluar berapa', 'sudah keluar', 'sudah habis',
+        ];
+        foreach ($expenseKeywords as $kw) {
+            if (str_contains($lower, $kw)) {
+                $now     = now();
+                $expense = $user->transactions()->completed()
+                               ->byMonth($now->year, $now->month)->where('type', 'expense')->sum('amount');
+                $income  = $user->transactions()->completed()
+                               ->byMonth($now->year, $now->month)->where('type', 'income')->sum('amount');
+                $net     = $income - $expense;
+                $msg  = "📊 *Bulan " . $now->translatedFormat('F Y') . ":*\n\n";
+                $msg .= "💸 Pengeluaran: Rp" . number_format($expense, 0, ',', '.') . "\n";
+                $msg .= "💰 Pemasukan: Rp" . number_format($income, 0, ',', '.') . "\n";
+                $msg .= ($net >= 0 ? "📈" : "📉") . " Cashflow: " . ($net >= 0 ? "+" : "") . "Rp" . number_format($net, 0, ',', '.') . "\n\n";
+                $msg .= "_Ketik /rekap untuk laporan lengkap_";
+                return $msg;
+            }
+        }
+
+        $incomeKeywords = [
+            'pemasukan', 'pemasukan bulan ini', 'penghasilan', 'masuk berapa',
+            'dapat berapa', 'gaji berapa',
+        ];
+        foreach ($incomeKeywords as $kw) {
+            if (str_contains($lower, $kw)) {
+                $now    = now();
+                $income = $user->transactions()->completed()
+                              ->byMonth($now->year, $now->month)->where('type', 'income')->sum('amount');
+                return "💰 *Pemasukan " . $now->translatedFormat('F Y') . ":*\nRp" . number_format($income, 0, ',', '.') .
+                       "\n\n_Ketik /rekap untuk laporan lengkap_";
+            }
+        }
+
+        // ── Laporan / rekap singkat ────────────────────────────────────────
+        $laporanKeywords = [
+            'laporan', 'rekap', 'rekapan', 'ringkasan', 'summary',
+            'laporan bulan ini', 'rekap bulan ini', 'bulan ini gimana',
+            'bulan ini bagaimana', 'gimana keuangan', 'bagaimana keuangan',
+        ];
+        foreach ($laporanKeywords as $kw) {
+            if (str_contains($lower, $kw)) {
+                $now     = now();
+                $income  = $user->transactions()->completed()
+                               ->byMonth($now->year, $now->month)->where('type', 'income')->sum('amount');
+                $expense = $user->transactions()->completed()
+                               ->byMonth($now->year, $now->month)->where('type', 'expense')->sum('amount');
+                $net     = $income - $expense;
+                $msg  = "📊 *Ringkasan " . $now->translatedFormat('F Y') . ":*\n\n";
+                $msg .= "💰 Pemasukan: Rp" . number_format($income, 0, ',', '.') . "\n";
+                $msg .= "💸 Pengeluaran: Rp" . number_format($expense, 0, ',', '.') . "\n";
+                $msg .= ($net >= 0 ? "📈" : "📉") . " Cashflow: " . ($net >= 0 ? "+" : "") . "Rp" . number_format($net, 0, ',', '.') . "\n\n";
+                $msg .= "_Ketik /rekap untuk rekapan lengkap dengan detail & AI insight_";
+                return $msg;
+            }
+        }
+
+        // ── Daftar wallet ─────────────────────────────────────────────────
+        $walletKeywords = ['wallet', 'dompet', 'rekening', 'akun', 'daftar wallet', 'list wallet'];
+        foreach ($walletKeywords as $kw) {
+            if ($lower === $kw || str_starts_with($lower, 'cek ' . $kw) || str_starts_with($lower, 'lihat ' . $kw)) {
+                $wallets = $user->wallets()->where('is_active', true)->orderBy('sort_order')->get();
+                $lines   = ["💳 *Daftar Wallet:*\n"];
+                foreach ($wallets as $w) {
+                    $type    = ucfirst(str_replace('_', ' ', $w->type));
+                    $lines[] = "• *{$w->name}* ({$type})\n  Rp" . number_format($w->balance, 0, ',', '.');
+                }
+                return implode("\n", $lines);
+            }
+        }
+
+        // ── Bantuan / help ─────────────────────────────────────────────────
+        $helpKeywords = ['help', 'bantuan', 'cara pakai', 'cara penggunaan', 'bisa apa', 'apa yang bisa', 'fitur'];
+        foreach ($helpKeywords as $kw) {
+            if (str_contains($lower, $kw)) {
+                $help  = "🤖 *Finance AI Bot — Panduan*\n\n";
+                $help .= "*Cara input transaksi (cukup ketik natural):*\n";
+                $help .= "💬 _beli kopi 25rb gopay_\n";
+                $help .= "💬 _gaji masuk 5jt bca_\n";
+                $help .= "💬 _transfer 100rb dari bca ke gopay_\n";
+                $help .= "📸 Foto struk → otomatis dicatat\n";
+                $help .= "🎤 Voice note → otomatis dicatat\n\n";
+                $help .= "*Cek info (bisa tulis bebas):*\n";
+                $help .= "💬 _saldo_ atau _cek saldo_\n";
+                $help .= "💬 _pengeluaran bulan ini_\n";
+                $help .= "💬 _laporan_ atau _rekap_\n";
+                $help .= "💬 _bulan ini boros gak?_\n\n";
+                $help .= "*Commands:*\n";
+                $help .= "/saldo /laporan /rekap /topkategori /wallet /help\n\n";
+                $help .= "_Tanya apa saja seputar keuanganmu, bot akan jawab!_ 😊";
+                return $help;
+            }
+        }
+
+        return null; // tidak ada yang cocok → lanjut ke flow berikutnya
     }
 
     protected function handlePhoto(array $message, User $user, int|string $chatId, TelegramMessage $msgRecord): void
@@ -728,64 +863,4 @@ class TelegramWebhookService
         ];
     }
 
-    /**
-     * Detect if text looks like a question/request rather than a transaction.
-     * Check BEFORE trying to parse as transaction to avoid wasting AI tokens.
-     *
-     * PENTING: Jangan masukkan kata yang ada di konteks transaksi seperti:
-     * "tambah", "masuk", "keluar", "catat", "simpan", "bayar"
-     * karena itu semua adalah transaksi, bukan pertanyaan!
-     */
-    protected function looksLikeQuestion(string $text): bool
-    {
-        $lower = strtolower(trim($text));
-
-        // ── Cek tanda tanya eksplisit ─────────────────────────────────────
-        if (str_contains($lower, '?')) return true;
-
-        // ── BLACKLIST: jika mengandung kata-kata transaksi ini, BUKAN pertanyaan ──
-        // Kata-kata ini menandakan aksi pencatatan transaksi
-        $transactionIndicators = [
-            'beli', 'bayar', 'bayarin', 'transfer', 'tarik', 'setor', 'top up', 'topup',
-            'isi', 'beli', 'jajan', 'makan', 'minum', 'bensin', 'parkir',
-            'gaji', 'pemasukan', 'penghasilan', 'dapat uang', 'terima',
-            'keluar', 'pengeluaran', 'habis', 'abis',
-            'tambah', 'tambahkan', 'masukin', 'simpen', 'catat', 'input',
-            'masuk ke', 'masuk dari', 'ke wallet', 'ke krom', 'ke bri', 'ke bca',
-            'ke gopay', 'ke dana', 'ke ovo', 'ke cash',
-        ];
-        foreach ($transactionIndicators as $ti) {
-            if (str_contains($lower, $ti)) return false;
-        }
-
-        // ── WHITELIST: kata-kata yang jelas pertanyaan/analisa ─────────────
-        $definitelyQuestion = [
-            // Rekap/laporan eksplisit
-            'rekap', 'rekapan', 'rangkum', 'rangkuman', 'ringkasan', 'resume',
-            'laporan keuangan', 'laporan bulanan', 'laporan pengeluaran',
-            // Analisa
-            'analisa', 'analisis', 'evaluasi',
-            'boros', 'hemat', 'irit', 'saran keuangan', 'rekomendasi',
-            // Pertanyaan murni
-            'berapa total', 'berapa saldo', 'berapa pengeluaran', 'berapa pemasukan',
-            'gimana kondisi', 'bagaimana kondisi', 'bagaimana keuangan',
-            'paling boros', 'paling sering', 'terbesar', 'terbanyak',
-            'bulan lalu', 'bulan ini lebih', 'dibanding',
-            'trend', 'perbandingan', 'statistik',
-        ];
-        foreach ($definitelyQuestion as $kw) {
-            if (str_contains($lower, $kw)) return true;
-        }
-
-        // ── Kata tanya di awal kalimat ────────────────────────────────────
-        $startsWithQuestion = ['berapa', 'gimana', 'bagaimana', 'kenapa', 'mengapa',
-                               'kapan', 'dimana', 'di mana', 'siapa', 'apa saja',
-                               'apa yang', 'coba cerita', 'tolong analisa', 'tolong rekap',
-                               'tolong buatkan', 'buatkan rekap', 'buatkan laporan'];
-        foreach ($startsWithQuestion as $kw) {
-            if (str_starts_with($lower, $kw)) return true;
-        }
-
-        return false;
-    }
 }
