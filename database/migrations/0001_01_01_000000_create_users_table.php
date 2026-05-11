@@ -15,11 +15,13 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('phone')->nullable()->unique();
+            $table->string('telegram_id')->nullable()->unique();
+            $table->string('telegram_username')->nullable();
             $table->string('avatar')->nullable();
             $table->enum('role', ['user', 'admin'])->default('user');
             $table->string('currency', 10)->default('IDR');
             $table->string('language', 10)->default('id');
-            $table->boolean('whatsapp_notifications')->default(true);
+            $table->boolean('telegram_notifications')->default(true);
             $table->decimal('minimum_balance_warning', 15, 2)->default(100000);
             $table->boolean('is_active')->default(true);
             $table->string('timezone')->default('Asia/Jakarta');

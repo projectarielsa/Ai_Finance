@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\AppSetting;
 use App\Models\ApiCredential;
-use App\Models\WhatsappGateway;
 use Illuminate\Support\Facades\Cache;
 
 class AppSettingService
@@ -30,20 +29,14 @@ class AppSettingService
         return ApiCredential::getDefault($provider);
     }
 
-    public function getDefaultGateway(): ?WhatsappGateway
-    {
-        return WhatsappGateway::getDefault();
-    }
-
     public function getAiApiKey(): ?string
     {
         $cred = $this->getAiCredential();
         if ($cred?->key_value) return $cred->key_value;
 
-        // Fallback: cek semua kemungkinan nama env variable
+        // Fallback to env
         return config('services.groq.api_key')
-            ?? env('GROQ_API_KEY')
-            ?? env('GROK_API_KEY'); // backward compat
+            ?? env('GROQ_API_KEY');
     }
 
     public function getAiModel(): string
@@ -68,11 +61,6 @@ class AppSettingService
     public function getTelegramToken(): ?string
     {
         return config('services.telegram.bot_token');
-    }
-
-    public function getWhatsappGateway(): ?WhatsappGateway
-    {
-        return Cache::remember('default_wa_gateway', 300, fn() => $this->getDefaultGateway());
     }
 
     public function clearCache(): void

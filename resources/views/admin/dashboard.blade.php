@@ -14,6 +14,10 @@
             <p class="text-3xl font-bold text-white mt-1">{{ number_format($totalTransactions) }}</p>
         </div>
         <div class="glass-card p-5">
+            <p class="text-dark-400 text-xs">Total Pesan Telegram</p>
+            <p class="text-3xl font-bold text-white mt-1">{{ number_format($totalTgMessages) }}</p>
+        </div>
+        <div class="glass-card p-5">
             <p class="text-dark-400 text-xs">AI Requests</p>
             <p class="text-3xl font-bold text-white mt-1">{{ number_format($totalAiRequests) }}</p>
         </div>

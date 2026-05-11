@@ -15,13 +15,13 @@ class VoiceNoteTranscriptionService
     ) {}
 
     /**
-     * Process a voice note from WhatsApp.
+     * Process a voice note from Telegram.
      */
-    public function processVoiceNote(string $audioPath, User $user, ?int $whatsappMessageId = null): array
+    public function processVoiceNote(string $audioPath, User $user, ?int $telegramMessageId = null): array
     {
         $transcriptionRecord = VoiceNoteTranscription::create([
             'user_id'    => $user->id,
-            'message_id' => $whatsappMessageId, // works for both Telegram & WhatsApp
+            'message_id' => $telegramMessageId,
             'audio_path' => $audioPath,
             'audio_format'         => pathinfo($audioPath, PATHINFO_EXTENSION),
             'status'               => 'pending',
@@ -53,7 +53,7 @@ class VoiceNoteTranscriptionService
         ]);
 
         // Parse the transcription as a transaction
-        $parseResult = $this->transactionParser->parseAndSave($transcription, $user);
+        $parseResult = $this->transactionParser->parseAndSave($transcription, $user, null, 'telegram_voice');
 
         if ($parseResult['success']) {
             $transcriptionRecord->update([

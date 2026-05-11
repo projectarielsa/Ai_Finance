@@ -20,7 +20,7 @@ class UserFactory extends Factory
             'phone'                    => '62' . fake()->numerify('8##########'),
             'role'                     => 'user',
             'is_active'                => true,
-            'whatsapp_notifications'   => true,
+            'telegram_notifications'  => true,
             'minimum_balance_warning'  => 100000,
             'remember_token'           => Str::random(10),
         ];

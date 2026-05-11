@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\TelegramMessage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -37,9 +38,9 @@ class ReceiptScan extends Model
         return $this->belongsTo(Transaction::class);
     }
 
-    public function whatsappMessage()
+    public function telegramMessage()
     {
-        return $this->belongsTo(WhatsappMessage::class);
+        return $this->belongsTo(TelegramMessage::class, 'message_id');
     }
 
     public function getImageUrlAttribute(): string

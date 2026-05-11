@@ -1,6 +1,6 @@
-# 💰 Finance AI WhatsApp Assistant
+# 💰 Finance AI — Telegram Bot Assistant
 
-> Aplikasi keuangan pribadi cerdas berbasis Laravel 12 yang terintegrasi dengan WhatsApp dan AI Grok untuk pencatatan transaksi otomatis.
+> Aplikasi keuangan pribadi cerdas berbasis Laravel 12 yang terintegrasi dengan **Telegram Bot** dan **Groq AI** untuk pencatatan transaksi otomatis via chat.
 
 ![Laravel](https://img.shields.io/badge/Laravel-12-red) ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3-blue) ![PHP](https://img.shields.io/badge/PHP-8.2-purple) ![MySQL](https://img.shields.io/badge/MySQL-8-orange)
 
@@ -8,15 +8,15 @@
 
 ## ✨ Fitur Utama
 
-- 🤖 **AI Grok Integration** — Parse transaksi dari teks natural, foto struk, dan voice note
-- 📱 **WhatsApp Gateway** — Input transaksi langsung dari chat WhatsApp
-- 📸 **Receipt Scanner** — Scan struk/nota otomatis via foto WhatsApp
+- 🤖 **Groq AI Integration** — Parse transaksi dari teks natural, foto struk, dan voice note
+- 📱 **Telegram Bot** — Input transaksi langsung dari chat Telegram
+- 📸 **Receipt Scanner** — Scan struk/nota otomatis via foto Telegram
 - 🎤 **Voice Note** — Catat transaksi via rekaman suara
 - 💳 **Multi Wallet** — BCA, BRI, Mandiri, Gopay, Dana, OVO, dll.
 - 📊 **Dashboard Analitik** — Chart interaktif, AI insight, laporan bulanan
 - 📄 **Export PDF & Excel** — Laporan keuangan lengkap
 - ⚙️ **Admin Panel** — Konfigurasi API key tanpa edit kode
-- 🔒 **Security** — API key terenkripsi, webhook signature, rate limiting
+- 🔒 **Security** — API key terenkripsi, webhook signature, race-condition-safe balance updates
 
 ---
 
@@ -32,7 +32,7 @@
 
 ```bash
 # 1. Clone atau extract project
-cd finance-ai-whatsapp-assistant
+cd finance-ai
 
 # 2. Install PHP dependencies
 composer install
@@ -48,9 +48,6 @@ php artisan key:generate
 mysql -u root -e "CREATE DATABASE finance_ai;"
 
 # 6. Update .env dengan kredensial database Anda
-# DB_DATABASE=finance_ai
-# DB_USERNAME=root
-# DB_PASSWORD=yourpassword
 
 # 7. Jalankan migrasi & seeder
 php artisan migrate --seed
@@ -99,46 +96,40 @@ Akses: http://localhost:8000
 | Scan foto struk (Vision) | `meta-llama/llama-4-scout-17b-16e-instruct` | Multimodal, bisa baca gambar |
 | Transcribe voice note | `whisper-large-v3` | Whisper via Groq (super cepat) |
 
-### Konfigurasi Vision Model
+---
 
-Untuk mengatur vision model terpisah, tambahkan di field "Meta" saat membuat credential:
-```json
-{"vision_model": "meta-llama/llama-4-scout-17b-16e-instruct"}
-```
+## 📱 Setup Telegram Bot
 
-Atau cukup isi di `.env`:
+### 1. Buat Bot di BotFather
+1. Chat ke [@BotFather](https://t.me/BotFather) di Telegram
+2. Kirim `/newbot` dan ikuti instruksinya
+3. Salin **Bot Token** yang diberikan
+
+### 2. Konfigurasi `.env`
 ```env
-AI_PROVIDER=groq
-GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxx
-GROQ_MODEL=llama-3.3-70b-versatile
-GROQ_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
-GROQ_BASE_URL=https://api.groq.com/openai/v1
+TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
+TELEGRAM_BOT_USERNAME=YourBotUsername
+TELEGRAM_WEBHOOK_SECRET=random_secret_string_here
 ```
 
----
+### 3. Daftarkan Webhook
+Setelah deploy ke server dengan HTTPS:
+```bash
+# Via artisan (setelah login admin)
+# Atau akses URL:
+https://yourdomain.com/telegram/setup-webhook
+```
 
-## 📱 Setup WhatsApp Gateway
-
-1. Daftar ke salah satu provider:
-   - [Fonnte](https://fonnte.com) — Recommended
-   - [Wablas](https://wablas.com)
-   - [Whacenter](https://whacenter.com)
-
-2. Buka **Admin → WhatsApp Gateway**
-
-3. Klik **+ Tambah Gateway** dan isi:
-   - Provider, Base URL, API Key, Nomor Pengirim
-
-4. **Webhook URL** (daftarkan ke provider):
-   ```
-   https://yourdomain.com/webhook/whatsapp
-   ```
-
-5. Test koneksi dari admin panel
+Atau dari **Admin Panel → Telegram → Set Webhook**.
 
 ---
 
-## 💬 Cara Penggunaan WhatsApp
+## 💬 Cara Penggunaan Telegram Bot
+
+### Hubungkan Akun
+```
+/link email@anda.com
+```
 
 ### Input Transaksi via Teks
 ```
@@ -151,20 +142,22 @@ bayar listrik 350 ribu pake bca
 ```
 
 ### Kirim Foto Struk
-Kirim foto struk/nota ke nomor WhatsApp terdaftar.
-AI akan otomatis membaca dan mencatat transaksi.
+Kirim foto struk/nota ke bot. AI akan otomatis membaca dan mencatat transaksi.
 
 ### Kirim Voice Note
 Rekam suara: *"Catat ya, tadi beli bensin lima puluh ribu pakai cash"*
-AI akan mentranskrip dan mencatat otomatis.
 
-### Commands WhatsApp
+### Commands Bot
 ```
+/start          - Salam pembuka
 /saldo          - Lihat semua saldo wallet
-/laporan        - Laporan bulan ini
-/bulanini       - Sama dengan /laporan
+/laporan        - Ringkasan bulan ini
+/rekap          - Rekapan lengkap bulan ini
+/rekap 4 2026   - Rekap bulan April 2026
 /topkategori    - Top kategori pengeluaran
 /wallet         - Daftar wallet
+/link email     - Hubungkan/ganti akun
+/unlink         - Putuskan akun dari bot
 /help           - Bantuan lengkap
 ```
 
@@ -173,43 +166,7 @@ AI akan mentranskrip dan mencatat otomatis.
 bulan ini saya paling boros dimana?
 berapa total pengeluaran makan?
 buat ringkasan keuangan bulan ini
-berapa saldo BRI saya?
-```
-
----
-
-## 📊 Contoh Payload Webhook WhatsApp
-
-### Text Message
-```json
-{
-  "sender": "628123456789",
-  "message": "beli kopi 25rb pakai gopay",
-  "type": "text",
-  "id": "msg_123abc"
-}
-```
-
-### Image (Struk)
-```json
-{
-  "sender": "628123456789",
-  "type": "image",
-  "file": "https://cdn.gateway.com/media/image.jpg",
-  "mimetype": "image/jpeg",
-  "id": "msg_456def"
-}
-```
-
-### Voice Note
-```json
-{
-  "sender": "628123456789",
-  "type": "voice",
-  "file": "https://cdn.gateway.com/media/voice.ogg",
-  "mimetype": "audio/ogg",
-  "id": "msg_789ghi"
-}
+analisa keuangan saya
 ```
 
 ---
@@ -218,28 +175,29 @@ berapa saldo BRI saya?
 
 ```
 app/
-├── Console/Commands/       # Artisan commands (SendMonthlyReports)
+├── Console/Commands/       # SendMonthlyReports (Telegram)
 ├── Exports/                # Excel exports
 ├── Http/
 │   ├── Controllers/
 │   │   ├── Admin/          # Admin panel controllers
 │   │   ├── Auth/           # Auth controllers
 │   │   └── ...             # Feature controllers
-│   └── Middleware/         # Custom middleware
-├── Jobs/                   # Queue jobs
+│   └── Middleware/         # AdminMiddleware
+├── Jobs/                   # Queue jobs (Telegram, MonthlyReport)
 ├── Models/                 # Eloquent models
 ├── Providers/              # Service providers
-└── Services/               # Business logic services
+└── Services/               # Business logic
     ├── AppSettingService.php
     ├── GrokAIService.php
     ├── TransactionParserService.php
     ├── ReceiptScannerService.php
     ├── VoiceNoteTranscriptionService.php
-    ├── WhatsAppService.php
-    └── WhatsAppWebhookService.php
+    ├── TelegramBotService.php
+    ├── TelegramWebhookService.php
+    └── ...
 
 database/
-├── migrations/             # 12 migration files
+├── migrations/             # DB migrations
 ├── seeders/                # Demo data seeders
 └── factories/              # Model factories
 
@@ -259,11 +217,7 @@ resources/views/
 ## 🔧 Queue Worker (untuk production)
 
 ```bash
-# Jalankan queue worker
-php artisan queue:work --queue=whatsapp,notifications,default
-
-# Atau dengan supervisor (recommended)
-php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+php artisan queue:work --queue=notifications,default --sleep=3 --tries=3
 ```
 
 ---
@@ -271,13 +225,11 @@ php artisan queue:work --sleep=3 --tries=3 --max-time=3600
 ## 🌐 Konfigurasi Production
 
 ```bash
-# Optimasi
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 php artisan optimize
 
-# Set permissions
 chmod -R 775 storage bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache
 ```
@@ -286,17 +238,18 @@ chown -R www-data:www-data storage bootstrap/cache
 
 ## 📌 Tech Stack
 
-| Layer      | Teknologi                    |
-|------------|------------------------------|
-| Backend    | Laravel 12, PHP 8.2          |
-| Database   | MySQL 8.0                    |
-| Frontend   | Blade, TailwindCSS 3, Alpine.js |
-| Charts     | Chart.js 4                   |
+| Layer      | Teknologi                           |
+|------------|-------------------------------------|
+| Backend    | Laravel 12, PHP 8.2                 |
+| Database   | MySQL 8.0                           |
+| Frontend   | Blade, TailwindCSS 3, Alpine.js     |
+| Charts     | Chart.js 4                          |
+| Bot        | Telegram Bot API                    |
 | AI         | Groq API (Llama 3.3 + Llama 4 Scout Vision) |
-| Audio      | Groq Whisper (whisper-large-v3) |
-| Queue      | Laravel Queue (Database)     |
-| PDF        | DomPDF (barryvdh)            |
-| Excel      | Laravel Excel (Maatwebsite)  |
+| Audio      | Groq Whisper (whisper-large-v3)     |
+| Queue      | Laravel Queue (Database)            |
+| PDF        | DomPDF (barryvdh)                   |
+| Excel      | Laravel Excel (Maatwebsite)         |
 
 ---
 
@@ -306,4 +259,4 @@ MIT License — Bebas digunakan dan dimodifikasi.
 
 ---
 
-Made with ❤️ by Finance AI Team
+Made with ❤️ — Finance AI Team

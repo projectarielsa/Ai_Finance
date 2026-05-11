@@ -8,13 +8,13 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Schedule monthly reports on the 1st of each month at 08:00
+// Send monthly reports on the 1st of each month at 08:00 via Telegram
 Schedule::command('finance:send-monthly-reports')->monthlyOn(1, '08:00');
 
-// Check minimum balance daily at 09:00 - send Telegram notification
+// Check minimum balance daily at 09:00 — send Telegram notification
 Schedule::call(function () {
     \App\Models\User::where('is_active', true)
-        ->where('whatsapp_notifications', true)
+        ->where('telegram_notifications', true)
         ->whereNotNull('telegram_id')
         ->each(function ($user) {
             $lowBalanceWallets = $user->wallets()
@@ -22,6 +22,7 @@ Schedule::call(function () {
                 ->where('include_in_total', true)
                 ->where('balance', '<', $user->minimum_balance_warning)
                 ->get();
+
             if ($lowBalanceWallets->isNotEmpty()) {
                 $telegram = app(\App\Services\TelegramBotService::class);
                 foreach ($lowBalanceWallets as $wallet) {

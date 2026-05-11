@@ -33,8 +33,8 @@
                     <input type="email" name="email" value="{{ old('email',$user->email) }}" class="input-field" required>
                 </div>
                 <div class="form-group">
-                    <label class="input-label">Nomor WhatsApp</label>
-                    <input type="text" name="phone" value="{{ old('phone',$user->phone) }}" class="input-field" placeholder="628123456789">
+                    <label class="input-label">Nomor Telepon</label>
+                    <input type="text" name="phone" value="{{ old('phone',$user->phone) }}" class="input-field" placeholder="08123456789">
                 </div>
                 <div class="form-group">
                     <label class="input-label">Timezone</label>
@@ -50,10 +50,10 @@
                 </div>
                 <div class="col-span-2">
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" name="whatsapp_notifications" value="1" {{ $user->whatsapp_notifications?'checked':'' }} class="w-4 h-4 rounded border-dark-600 bg-dark-800 text-primary-500">
+                        <input type="checkbox" name="telegram_notifications" value="1" {{ $user->telegram_notifications ? 'checked' : '' }} class="w-4 h-4 rounded border-dark-600 bg-dark-800 text-primary-500">
                         <div>
-                            <span class="text-sm text-dark-200">Notifikasi WhatsApp</span>
-                            <p class="text-xs text-dark-500">Terima laporan bulanan dan peringatan saldo lewat WhatsApp</p>
+                            <span class="text-sm text-dark-200">Notifikasi Telegram</span>
+                            <p class="text-xs text-dark-500">Terima laporan bulanan dan peringatan saldo lewat Telegram Bot</p>
                         </div>
                     </label>
                 </div>
@@ -93,8 +93,8 @@
             </div>
             @if($user->phone)
             <div class="text-right">
-                <p class="text-dark-400 text-xs">WhatsApp terdaftar</p>
-                <p class="text-white text-sm font-medium">+{{ $user->phone }}</p>
+                <p class="text-dark-400 text-xs">Nomor telepon</p>
+                <p class="text-white text-sm font-medium">{{ $user->phone }}</p>
             </div>
             @endif
         </div>

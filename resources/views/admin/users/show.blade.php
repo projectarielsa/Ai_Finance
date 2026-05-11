@@ -21,7 +21,8 @@
             <div><dt class="text-dark-400 text-xs">Phone</dt><dd class="text-white text-sm">{{ $user->phone ?? '—' }}</dd></div>
             <div><dt class="text-dark-400 text-xs">Total Saldo</dt><dd class="text-white text-sm">Rp {{ number_format($user->total_balance,0,',','.') }}</dd></div>
             <div><dt class="text-dark-400 text-xs">Bergabung</dt><dd class="text-white text-sm">{{ $user->created_at->format('d M Y') }}</dd></div>
-            <div><dt class="text-dark-400 text-xs">WA Notifikasi</dt><dd class="text-white text-sm">{{ $user->whatsapp_notifications?'Aktif':'Nonaktif' }}</dd></div>
+            <div><dt class="text-dark-400 text-xs">Telegram</dt><dd class="text-white text-sm">{{ $user->telegram_id ? '@'.($user->telegram_username ?? $user->telegram_id) : '—' }}</dd></div>
+            <div><dt class="text-dark-400 text-xs">TG Notifikasi</dt><dd class="text-white text-sm">{{ $user->telegram_notifications ? 'Aktif' : 'Nonaktif' }}</dd></div>
         </dl>
     </div>
 

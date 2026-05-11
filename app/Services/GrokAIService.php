@@ -247,7 +247,7 @@ PROMPT;
     }
 
     /**
-     * Answer a financial question from Telegram/WhatsApp using full DB context.
+     * Answer a financial question from Telegram using full DB context.
      */
     public function answerFinancialQuestion(string $question, User $user, array $context): string
     {

@@ -19,14 +19,14 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         $data = $request->validate([
-            'name'                     => 'required|string|max:255',
-            'email'                    => 'required|email|unique:users,email,' . $user->id,
-            'phone'                    => 'nullable|string|max:20',
-            'timezone'                 => 'nullable|string',
-            'currency'                 => 'nullable|string|max:5',
-            'minimum_balance_warning'  => 'nullable|numeric|min:0',
-            'whatsapp_notifications'   => 'nullable|boolean',
-            'avatar'                   => 'nullable|image|max:2048',
+            'name'                    => 'required|string|max:255',
+            'email'                   => 'required|email|unique:users,email,' . $user->id,
+            'phone'                   => 'nullable|string|max:20',
+            'timezone'                => 'nullable|string',
+            'currency'                => 'nullable|string|max:5',
+            'minimum_balance_warning' => 'nullable|numeric|min:0',
+            'telegram_notifications'  => 'nullable|boolean',
+            'avatar'                  => 'nullable|image|max:2048',
         ]);
 
         if ($request->hasFile('avatar')) {
@@ -34,7 +34,7 @@ class ProfileController extends Controller
             $data['avatar'] = $request->file('avatar')->store('avatars', 'public');
         }
 
-        $data['whatsapp_notifications'] = $request->boolean('whatsapp_notifications');
+        $data['telegram_notifications'] = $request->boolean('telegram_notifications');
         $user->update($data);
 
         return back()->with('success', 'Profil berhasil diperbarui!');

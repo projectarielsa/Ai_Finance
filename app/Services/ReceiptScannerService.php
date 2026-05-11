@@ -7,6 +7,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\Category;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -15,8 +16,7 @@ class ReceiptScannerService
     public function __construct(protected GrokAIService $grokAI) {}
 
     /**
-     * Process a receipt image from Telegram or WhatsApp.
-     * $telegramMsgId / $whatsappMsgId — pass whichever is available.
+     * Process a receipt image from Telegram.
      */
     public function processReceipt(string $imagePath, User $user, ?int $telegramMsgId = null): array
     {
@@ -50,7 +50,7 @@ class ReceiptScannerService
         // Save receipt scan record
         $receiptScan = ReceiptScan::create([
             'user_id'                   => $user->id,
-            'message_id'                => $telegramMsgId, // works for both Telegram & WhatsApp
+            'message_id'                => $telegramMsgId,
             'image_path'                => $imagePath,
             'merchant_name'             => $scanned['merchant_name'] ?? null,
             'total_amount'              => $scanned['total_amount'] ?? null,
@@ -164,10 +164,6 @@ class ReceiptScannerService
 
         if ($amount <= 0) return null;
 
-        if (!$wallet->hasSufficientBalance($amount)) {
-            return null;
-        }
-
         // Find best-matching category
         $categories = Category::where(function ($q) use ($user) {
             $q->whereNull('user_id')->orWhere('user_id', $user->id);
@@ -179,29 +175,43 @@ class ReceiptScannerService
                    str_contains($catName, strtolower($c->name));
         }) ?? $categories->where('type', 'expense')->first();
 
-        $transaction = Transaction::create([
-            'user_id'          => $user->id,
-            'wallet_id'        => $wallet->id,
-            'category_id'      => $category?->id,
-            'type'             => 'expense',
-            'amount'           => $amount,
-            'description'      => 'Belanja di ' . ($scanned['merchant_name'] ?? 'Unknown'),
-            'merchant'         => $scanned['merchant_name'] ?? null,
-            'attachment'       => $receiptScan->image_path,
-            'transaction_date' => $receiptScan->receipt_date ?? now(),
-            'source'           => 'telegram_image', // covers both Telegram & WA image
-            'ai_confidence'    => $scanned['confidence'] ?? null,
-            'ai_raw_response'  => json_encode($scanned),
-            'status'           => 'completed',
-        ]);
+        try {
+            return DB::transaction(function () use ($amount, $user, $wallet, $category, $scanned, $receiptScan) {
+                // Lock wallet row to prevent concurrent balance manipulation
+                $wallet = Wallet::lockForUpdate()->findOrFail($wallet->id);
 
-        $wallet->debit($amount);
-        $receiptScan->update([
-            'transaction_id' => $transaction->id,
-            'status'         => 'confirmed',
-        ]);
+                if (!$wallet->hasSufficientBalance($amount)) {
+                    return null;
+                }
 
-        return $transaction;
+                $transaction = Transaction::create([
+                    'user_id'          => $user->id,
+                    'wallet_id'        => $wallet->id,
+                    'category_id'      => $category?->id,
+                    'type'             => 'expense',
+                    'amount'           => $amount,
+                    'description'      => 'Belanja di ' . ($scanned['merchant_name'] ?? 'Unknown'),
+                    'merchant'         => $scanned['merchant_name'] ?? null,
+                    'attachment'       => $receiptScan->image_path,
+                    'transaction_date' => $receiptScan->receipt_date ?? now(),
+                    'source'           => 'telegram_image',
+                    'ai_confidence'    => $scanned['confidence'] ?? null,
+                    'ai_raw_response'  => json_encode($scanned),
+                    'status'           => 'completed',
+                ]);
+
+                $wallet->debit($amount);
+                $receiptScan->update([
+                    'transaction_id' => $transaction->id,
+                    'status'         => 'confirmed',
+                ]);
+
+                return $transaction;
+            });
+        } catch (\Throwable $e) {
+            Log::error('ReceiptScanner createTransactionFromScan failed: ' . $e->getMessage());
+            return null;
+        }
     }
 
     protected function findWallet(string $name, $wallets): ?Wallet

@@ -12,16 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Exclude webhooks from CSRF verification
+        // Exclude Telegram webhook from CSRF verification
         $middleware->validateCsrfTokens(except: [
             'webhook/telegram',
-            'webhook/whatsapp',
             'api/*',
         ]);
 
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
-            'webhook.verify' => \App\Http\Middleware\VerifyWebhookSignature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

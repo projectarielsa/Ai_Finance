@@ -22,24 +22,42 @@ class ApiCredential extends Model
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
-            'is_default' => 'boolean',
-            'last_test_success' => 'boolean',
-            'last_tested_at' => 'datetime',
-            'meta' => 'array',
+            'is_active'        => 'boolean',
+            'is_default'       => 'boolean',
+            'last_test_success'=> 'boolean',
+            'last_tested_at'   => 'datetime',
+            'meta'             => 'array',
+            // key_value is encrypted via mutator/accessor below (Crypt facade),
+            // NOT the Laravel 'encrypted:' cast, so we keep it as plain string here.
         ];
     }
 
+    /**
+     * Always encrypt API key when storing.
+     */
     public function setKeyValueAttribute(string $value): void
     {
-        $this->attributes['key_value'] = Crypt::encryptString($value);
+        // Avoid double-encrypting: if the value is already encrypted, store as-is
+        try {
+            Crypt::decryptString($value);
+            // Already encrypted — store directly
+            $this->attributes['key_value'] = $value;
+        } catch (\Exception) {
+            // Plain text — encrypt it
+            $this->attributes['key_value'] = Crypt::encryptString($value);
+        }
     }
 
-    public function getKeyValueAttribute(string $value): string
+    /**
+     * Always decrypt API key when reading.
+     */
+    public function getKeyValueAttribute(?string $value): string
     {
+        if (empty($value)) return '';
         try {
             return Crypt::decryptString($value);
-        } catch (\Exception $e) {
+        } catch (\Exception) {
+            // Value was stored plain (legacy) — return as-is
             return $value;
         }
     }

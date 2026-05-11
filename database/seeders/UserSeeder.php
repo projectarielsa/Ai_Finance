@@ -16,20 +16,20 @@ class UserSeeder extends Seeder
     {
         // Admin
         $admin = User::updateOrCreate(['email' => 'admin@financeai.app'], [
-            'name'     => 'Admin FinanceAI',
-            'password' => Hash::make('password'),
-            'role'     => 'admin',
-            'phone'    => '628100000001',
-            'is_active'=> true,
+            'name'                  => 'Admin FinanceAI',
+            'password'              => Hash::make('password'),
+            'role'                  => 'admin',
+            'is_active'             => true,
+            'telegram_notifications'=> false,
         ]);
 
         // Demo user
         $user = User::updateOrCreate(['email' => 'demo@financeai.app'], [
-            'name'     => 'Demo User',
-            'password' => Hash::make('password'),
-            'role'     => 'user',
-            'phone'    => '628100000002',
-            'is_active'=> true,
+            'name'                  => 'Demo User',
+            'password'              => Hash::make('password'),
+            'role'                  => 'user',
+            'is_active'             => true,
+            'telegram_notifications'=> true,
         ]);
 
         // Create wallets for demo user

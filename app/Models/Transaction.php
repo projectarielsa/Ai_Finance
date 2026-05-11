@@ -63,9 +63,9 @@ class Transaction extends Model
         return $this->belongsTo(Category::class);
     }
 
-    public function whatsappMessage()
+    public function telegramMessage()
     {
-        return $this->belongsTo(WhatsappMessage::class, 'whatsapp_message_id', 'message_id');
+        return $this->belongsTo(TelegramMessage::class, 'telegram_message_id');
     }
 
     public function receiptScan()

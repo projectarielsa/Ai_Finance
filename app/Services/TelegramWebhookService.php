@@ -131,7 +131,7 @@ class TelegramWebhookService
         }
 
         // ── Parse as financial transaction ────────────────────────────────
-        $result = $this->transactionParser->parseAndSave($text, $user);
+        $result = $this->transactionParser->parseAndSave($text, $user, null, 'telegram_text');
         $reply  = $result['message'] ?? ($result['success'] ? '✅ Transaksi dicatat!' : '❌ Tidak dikenali sebagai transaksi keuangan.');
 
         if (!$result['success'] && ($result['balance_error'] ?? false)) {

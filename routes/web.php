@@ -5,7 +5,6 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\ApiCredentialController;
 use App\Http\Controllers\Admin\AppSettingController;
 use App\Http\Controllers\Admin\TelegramSettingController;
-use App\Http\Controllers\Admin\WhatsappGatewayController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -15,7 +14,6 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\WalletController;
-use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Auth Routes ─────────────────────────────────────────────────────────────
@@ -31,10 +29,6 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
-
-// ─── Webhook (public, no auth) ───────────────────────────────────────────────
-Route::post('webhook/whatsapp', [WebhookController::class, 'whatsapp'])->name('webhook.whatsapp');
-Route::get('webhook/verify',    [WebhookController::class, 'verify'])->name('webhook.verify');
 
 // ─── Telegram Webhook (public, no auth) ──────────────────────────────────────
 Route::post('webhook/telegram',             [TelegramController::class, 'webhook'])->name('webhook.telegram');
@@ -82,11 +76,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // API Credentials
     Route::resource('api-credentials', ApiCredentialController::class)->except(['show']);
     Route::post('api-credentials/{apiCredential}/test', [ApiCredentialController::class, 'testConnection'])->name('api-credentials.test');
-
-    // WhatsApp Gateways
-    Route::resource('whatsapp-gateways', WhatsappGatewayController::class)->except(['show']);
-    Route::post('whatsapp-gateways/{whatsappGateway}/test',      [WhatsappGatewayController::class, 'testConnection'])->name('whatsapp-gateways.test');
-    Route::post('whatsapp-gateways/{whatsappGateway}/test-send', [WhatsappGatewayController::class, 'sendTestMessage'])->name('whatsapp-gateways.test-send');
 
     // App Settings
     Route::get('settings',           [AppSettingController::class, 'index'])->name('settings.index');

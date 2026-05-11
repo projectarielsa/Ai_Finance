@@ -13,8 +13,10 @@ return [
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
+
+    // ── AI / Groq ────────────────────────────────────────────────────────────
     'ai' => [
-        'provider' => env('AI_PROVIDER', 'groq'), // groq, grok, openai
+        'provider' => env('AI_PROVIDER', 'groq'),
     ],
     'groq' => [
         'api_key'      => env('GROQ_API_KEY'),
@@ -25,16 +27,11 @@ return [
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
     ],
+
+    // ── Telegram Bot ─────────────────────────────────────────────────────────
     'telegram' => [
         'bot_token'      => env('TELEGRAM_BOT_TOKEN'),
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
         'bot_username'   => env('TELEGRAM_BOT_USERNAME'),
-    ],
-    'whatsapp' => [
-        'gateway_url'    => env('WHATSAPP_GATEWAY_URL'),
-        'api_key'        => env('WHATSAPP_API_KEY'),
-        'device_id'      => env('WHATSAPP_DEVICE_ID'),
-        'sender_number'  => env('WHATSAPP_SENDER_NUMBER'),
-        'webhook_secret' => env('WHATSAPP_WEBHOOK_SECRET'),
     ],
 ];
