@@ -457,11 +457,11 @@ class TelegramWebhookService
             return;
         }
 
-        // Parse callback data: wallet_confirm:{receipt_scan_id}:{wallet_name}
+        // ── wallet_confirm:{scan_id}:{wallet_name} ────────────────────────
         if (str_starts_with($data, 'wallet_confirm:')) {
-            $parts       = explode(':', $data, 3);
-            $scanId      = $parts[1] ?? null;
-            $walletName  = $parts[2] ?? null;
+            $parts      = explode(':', $data, 3);
+            $scanId     = $parts[1] ?? null;
+            $walletName = $parts[2] ?? null;
 
             if (!$scanId || !$walletName) return;
 
@@ -474,23 +474,46 @@ class TelegramWebhookService
             // Process with chosen wallet
             $result = $this->receiptScanner->confirmWallet($receiptScan, $walletName, $user);
 
-            // Edit original message to remove keyboard and show result
+            // Edit original message — remove keyboard and show result
             $this->telegram->editMessageText($chatId, $msgId, $result['message']);
+            return;
+        }
+
+        // ── receipt_cancel:{scan_id} ───────────────────────────────────────
+        if (str_starts_with($data, 'receipt_cancel:')) {
+            $scanId      = explode(':', $data, 2)[1] ?? null;
+
+            if (!$scanId) return;
+
+            $receiptScan = \App\Models\ReceiptScan::find($scanId);
+            if (!$receiptScan || $receiptScan->user_id !== $user->id) {
+                $this->telegram->editMessageText($chatId, $msgId, "❌ Data struk tidak ditemukan.");
+                return;
+            }
+
+            $this->receiptScanner->cancelScan($receiptScan);
+
+            $this->telegram->editMessageText(
+                $chatId,
+                $msgId,
+                "🚫 *Transaksi dibatalkan.*\n\n_Struk tidak dicatat. Kirim ulang foto jika ingin mencoba lagi._"
+            );
             return;
         }
     }
 
     /**
      * Send wallet selection as inline keyboard buttons.
+     * Includes a ❌ Batalkan button at the bottom.
      */
     protected function sendWalletKeyboard(int|string $chatId, User $user, int $receiptScanId, string $promptText): void
     {
         $wallets = $user->wallets()->where('is_active', true)->get();
 
-        // Build inline keyboard rows (2 per row)
+        // Build wallet button rows (2 buttons per row)
         $buttons = [];
         $row     = [];
-        foreach ($wallets as $i => $wallet) {
+        foreach ($wallets as $wallet) {
             $row[] = [
                 'text'          => $wallet->name,
                 'callback_data' => "wallet_confirm:{$receiptScanId}:{$wallet->name}",
@@ -503,6 +526,14 @@ class TelegramWebhookService
         if (!empty($row)) {
             $buttons[] = $row;
         }
+
+        // Tombol batalkan — selalu di baris tersendiri paling bawah
+        $buttons[] = [
+            [
+                'text'          => '❌ Batalkan Transaksi',
+                'callback_data' => "receipt_cancel:{$receiptScanId}",
+            ],
+        ];
 
         $this->telegram->sendMessage($chatId, $promptText, [
             'reply_markup' => json_encode([

@@ -108,6 +108,18 @@ class ReceiptScannerService
     }
 
     /**
+     * Cancel a pending receipt scan — user tidak mau mencatat transaksi.
+     * Mark receipt scan as 'cancelled', tidak ada transaksi yang dibuat.
+     */
+    public function cancelScan(ReceiptScan $receiptScan): void
+    {
+        $receiptScan->update([
+            'status'                    => 'cancelled',
+            'needs_wallet_confirmation' => false,
+        ]);
+    }
+
+    /**
      * Confirm wallet choice for a pending receipt scan.
      * Called when user picks a wallet (inline keyboard or text reply).
      */
