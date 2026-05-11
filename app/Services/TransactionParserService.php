@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
+use Illuminate\Support\Facades\DB;
 
 class TransactionParserService
 {
@@ -14,9 +15,11 @@ class TransactionParserService
     ) {}
 
     /**
-     * Parse & save a transaction from any text message (Telegram/WhatsApp).
+     * Parse & save a transaction from any text message (Telegram/etc).
+     *
+     * @param string $source  Transaction source label, e.g. 'telegram_text' (default)
      */
-    public function parseAndSave(string $message, User $user, ?string $messageId = null): array
+    public function parseAndSave(string $message, User $user, ?string $messageId = null, string $source = 'telegram_text'): array
     {
         $wallets    = $user->wallets()->where('is_active', true)->get();
         $categories = Category::where(function ($q) use ($user) {
@@ -79,56 +82,81 @@ class TransactionParserService
             }
         }
 
-        // ── Balance check — STRICT, tidak boleh minus ─────────────────────
-        if (in_array($type, ['expense', 'transfer']) && !$wallet->hasSufficientBalance($amount)) {
-            return [
-                'success'       => false,
-                'balance_error' => true,
-                'message'       => "⚠️ Saldo *{$wallet->name}* tidak cukup.\n" .
-                                   "Saldo: Rp" . number_format($wallet->balance, 0, ',', '.') . "\n" .
-                                   "Dibutuhkan: Rp" . number_format($amount, 0, ',', '.') . "\n\n" .
-                                   "Silakan top up wallet terlebih dahulu atau gunakan wallet lain.",
-            ];
-        }
-
         // ── Find category ─────────────────────────────────────────────────
         $category = $this->findCategory($parsed['category'] ?? '', $categories, $type);
 
-        // ── Create transaction ────────────────────────────────────────────
-        $transaction = Transaction::create([
-            'user_id'          => $user->id,
-            'wallet_id'        => $wallet->id,
-            'target_wallet_id' => $targetWallet?->id,
-            'category_id'      => $category?->id,
-            'type'             => $type,
-            'amount'           => $amount,
-            'description'      => $parsed['description'] ?? $message,
-            'merchant'         => $parsed['merchant'] ?? null,
-            'transaction_date' => now(),
-            'source'           => 'telegram_text',
-            'ai_confidence'    => $parsed['confidence'] ?? null,
-            'ai_raw_response'  => json_encode($parsed),
-            'ai_parsed_data'   => $parsed,
-            'status'           => 'completed',
-        ]);
+        // ── Atomic: balance check + create + wallet update inside DB::transaction ──
+        // Prevents race condition (TOCTOU) where two concurrent requests both pass
+        // the balance check before either debit has been committed.
+        try {
+            $result = DB::transaction(function () use (
+                $user, $wallet, $targetWallet, $category,
+                $type, $amount, $parsed, $message, $source
+            ) {
+                // Re-fetch wallet with a row-level lock so no other request can
+                // read/write the balance until this transaction commits.
+                $wallet = Wallet::lockForUpdate()->findOrFail($wallet->id);
 
-        // ── Update wallet balances ────────────────────────────────────────
-        match ($type) {
-            'income'   => $wallet->credit($amount),
-            'expense'  => $wallet->debit($amount),
-            'transfer' => (static function () use ($wallet, $targetWallet, $amount): void {
-                $wallet->debit($amount);
-                $targetWallet?->credit($amount);
-            })(),
-        };
+                if ($targetWallet) {
+                    $targetWallet = Wallet::lockForUpdate()->findOrFail($targetWallet->id);
+                }
 
-        return [
-            'success'     => true,
-            'transaction' => $transaction,
-            'wallet'      => $wallet,
-            'parsed'      => $parsed,
-            'message'     => $this->buildSuccessMessage($transaction, $wallet, $targetWallet, $category),
-        ];
+                // ── Balance check INSIDE the lock ─────────────────────────
+                if (in_array($type, ['expense', 'transfer']) && !$wallet->hasSufficientBalance($amount)) {
+                    return [
+                        'success'       => false,
+                        'balance_error' => true,
+                        'message'       => "⚠️ Saldo *{$wallet->name}* tidak cukup.\n" .
+                                           "Saldo: Rp" . number_format($wallet->balance, 0, ',', '.') . "\n" .
+                                           "Dibutuhkan: Rp" . number_format($amount, 0, ',', '.') . "\n\n" .
+                                           "Silakan top up wallet terlebih dahulu atau gunakan wallet lain.",
+                    ];
+                }
+
+                // ── Create transaction ─────────────────────────────────────
+                $transaction = Transaction::create([
+                    'user_id'          => $user->id,
+                    'wallet_id'        => $wallet->id,
+                    'target_wallet_id' => $targetWallet?->id,
+                    'category_id'      => $category?->id,
+                    'type'             => $type,
+                    'amount'           => $amount,
+                    'description'      => $parsed['description'] ?? $message,
+                    'merchant'         => $parsed['merchant'] ?? null,
+                    'transaction_date' => now(),
+                    'source'           => $source,
+                    'ai_confidence'    => $parsed['confidence'] ?? null,
+                    'ai_raw_response'  => json_encode($parsed),
+                    'ai_parsed_data'   => $parsed,
+                    'status'           => 'completed',
+                ]);
+
+                // ── Update wallet balances ─────────────────────────────────
+                match ($type) {
+                    'income'   => $wallet->credit($amount),
+                    'expense'  => $wallet->debit($amount),
+                    'transfer' => (static function () use ($wallet, $targetWallet, $amount): void {
+                        $wallet->debit($amount);
+                        $targetWallet?->credit($amount);
+                    })(),
+                };
+
+                return [
+                    'success'     => true,
+                    'transaction' => $transaction,
+                    'wallet'      => $wallet,
+                    'parsed'      => $parsed,
+                    'message'     => $this->buildSuccessMessage($transaction, $wallet, $targetWallet, $category),
+                ];
+            });
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'message' => '❌ Gagal menyimpan transaksi. Coba lagi.',
+            ];
+        }
+
+        return $result;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

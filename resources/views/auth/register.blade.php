@@ -22,9 +22,8 @@
         <input type="email" name="email" value="{{ old('email') }}" class="input-field" placeholder="email@example.com" required>
     </div>
     <div class="form-group">
-        <label class="input-label">Nomor WhatsApp <span class="text-dark-500">(opsional)</span></label>
-        <input type="text" name="phone" value="{{ old('phone') }}" class="input-field" placeholder="628123456789">
-        <p class="text-xs text-dark-500 mt-1">Format internasional tanpa +. Untuk fitur WhatsApp AI.</p>
+        <label class="input-label">Nomor Telepon <span class="text-dark-500">(opsional)</span></label>
+        <input type="text" name="phone" value="{{ old('phone') }}" class="input-field" placeholder="08123456789">
     </div>
     <div class="form-group">
         <label class="input-label">Password</label>

@@ -13,7 +13,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'email', 'password', 'phone', 'telegram_id', 'telegram_username',
-        'avatar', 'role', 'currency', 'language', 'whatsapp_notifications',
+        'avatar', 'role', 'currency', 'language', 'telegram_notifications',
         'minimum_balance_warning', 'is_active', 'timezone',
     ];
 
@@ -22,11 +22,11 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'whatsapp_notifications' => 'boolean',
-            'is_active' => 'boolean',
-            'minimum_balance_warning' => 'decimal:2',
+            'email_verified_at'      => 'datetime',
+            'password'               => 'hashed',
+            'telegram_notifications' => 'boolean',
+            'is_active'              => 'boolean',
+            'minimum_balance_warning'=> 'decimal:2',
         ];
     }
 
@@ -48,11 +48,6 @@ class User extends Authenticatable
     public function categories()
     {
         return $this->hasMany(Category::class);
-    }
-
-    public function whatsappMessages()
-    {
-        return $this->hasMany(WhatsappMessage::class);
     }
 
     public function telegramMessages()

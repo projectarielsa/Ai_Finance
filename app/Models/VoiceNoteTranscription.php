@@ -30,8 +30,8 @@ class VoiceNoteTranscription extends Model
         return $this->belongsTo(Transaction::class);
     }
 
-    public function whatsappMessage()
+    public function telegramMessage()
     {
-        return $this->belongsTo(WhatsappMessage::class);
+        return $this->belongsTo(TelegramMessage::class, 'message_id');
     }
 }

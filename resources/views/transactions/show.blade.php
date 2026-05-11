@@ -28,7 +28,7 @@
             <div><dt class="text-dark-400 text-xs mb-0.5">Merchant</dt><dd class="text-white text-sm">{{ $transaction->merchant ?? '—' }}</dd></div>
             <div><dt class="text-dark-400 text-xs mb-0.5">Sumber</dt>
                 <dd class="text-white text-sm">
-                    @php $src=['manual'=>'Manual','whatsapp_text'=>'WhatsApp Text','whatsapp_image'=>'WhatsApp Foto Struk','whatsapp_voice'=>'WhatsApp Voice Note','import'=>'Import'] @endphp
+                    @php $src=['manual'=>'Manual','telegram_text'=>'Telegram Teks','telegram_image'=>'Telegram Foto Struk','telegram_voice'=>'Telegram Voice Note','import'=>'Import'] @endphp
                     {{ $src[$transaction->source] ?? $transaction->source }}
                 </dd>
             </div>
