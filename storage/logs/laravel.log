@@ -1,0 +1,40 @@
+[2026-05-12 15:35:13] local.ERROR: Method Illuminate\Console\Scheduling\CallbackEvent::onQueue does not exist. {"exception":"[object] (BadMethodCallException(code: 0): Method Illuminate\\Console\\Scheduling\\CallbackEvent::onQueue does not exist. at /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php:117)
+[stacktrace]
+#0 /www/wwwroot/finance.arielsa.site/routes/console.php(31): Illuminate\\Console\\Scheduling\\Event->__call()
+#1 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(523): require('...')
+#2 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(503): Illuminate\\Foundation\\Console\\Kernel->discoverCommands()
+#3 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(196): Illuminate\\Foundation\\Console\\Kernel->bootstrap()
+#4 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle()
+#5 /www/wwwroot/finance.arielsa.site/artisan(12): Illuminate\\Foundation\\Application->handleCommand()
+#6 {main}
+"} 
+[2026-05-12 15:38:12] local.ERROR: Method Illuminate\Console\Scheduling\CallbackEvent::onQueue does not exist. {"exception":"[object] (BadMethodCallException(code: 0): Method Illuminate\\Console\\Scheduling\\CallbackEvent::onQueue does not exist. at /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php:117)
+[stacktrace]
+#0 /www/wwwroot/finance.arielsa.site/routes/console.php(31): Illuminate\\Console\\Scheduling\\Event->__call()
+#1 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(523): require('...')
+#2 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(503): Illuminate\\Foundation\\Console\\Kernel->discoverCommands()
+#3 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(196): Illuminate\\Foundation\\Console\\Kernel->bootstrap()
+#4 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle()
+#5 /www/wwwroot/finance.arielsa.site/artisan(12): Illuminate\\Foundation\\Application->handleCommand()
+#6 {main}
+"} 
+[2026-05-12 15:39:37] local.ERROR: Method Illuminate\Console\Scheduling\CallbackEvent::onQueue does not exist. {"exception":"[object] (BadMethodCallException(code: 0): Method Illuminate\\Console\\Scheduling\\CallbackEvent::onQueue does not exist. at /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php:117)
+[stacktrace]
+#0 /www/wwwroot/finance.arielsa.site/routes/console.php(30): Illuminate\\Console\\Scheduling\\Event->__call()
+#1 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(523): require('...')
+#2 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(503): Illuminate\\Foundation\\Console\\Kernel->discoverCommands()
+#3 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(196): Illuminate\\Foundation\\Console\\Kernel->bootstrap()
+#4 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle()
+#5 /www/wwwroot/finance.arielsa.site/artisan(12): Illuminate\\Foundation\\Application->handleCommand()
+#6 {main}
+"} 
+[2026-05-12 15:43:10] local.ERROR: Method Illuminate\Console\Scheduling\CallbackEvent::onQueue does not exist. {"exception":"[object] (BadMethodCallException(code: 0): Method Illuminate\\Console\\Scheduling\\CallbackEvent::onQueue does not exist. at /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php:117)
+[stacktrace]
+#0 /www/wwwroot/finance.arielsa.site/routes/console.php(30): Illuminate\\Console\\Scheduling\\Event->__call()
+#1 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(523): require('...')
+#2 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(503): Illuminate\\Foundation\\Console\\Kernel->discoverCommands()
+#3 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(196): Illuminate\\Foundation\\Console\\Kernel->bootstrap()
+#4 /www/wwwroot/finance.arielsa.site/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle()
+#5 /www/wwwroot/finance.arielsa.site/artisan(12): Illuminate\\Foundation\\Application->handleCommand()
+#6 {main}
+"} 
