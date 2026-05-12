@@ -166,14 +166,17 @@ class TransactionController extends Controller
         abort_unless($transaction->user_id === Auth::id(), 403);
 
         DB::transaction(function () use ($transaction) {
-            // Reverse wallet balance
-            $wallet = $transaction->wallet;
+            // Lock wallet rows agar tidak ada race condition saat delete bersamaan
+            $wallet = Wallet::lockForUpdate()->findOrFail($transaction->wallet_id);
             match($transaction->type) {
                 'income'   => $wallet->debit($transaction->amount),
                 'expense'  => $wallet->credit($transaction->amount),
                 'transfer' => (function() use ($transaction, $wallet) {
                     $wallet->credit($transaction->amount);
-                    $transaction->targetWallet?->debit($transaction->amount);
+                    if ($transaction->target_wallet_id) {
+                        $targetWallet = Wallet::lockForUpdate()->findOrFail($transaction->target_wallet_id);
+                        $targetWallet->debit($transaction->amount);
+                    }
                 })(),
             };
             $transaction->delete();
