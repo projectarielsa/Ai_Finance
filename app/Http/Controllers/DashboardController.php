@@ -53,8 +53,9 @@ class DashboardController extends Controller
         // Chart data (last 6 months)
         $chartData = $this->getChartData($user, 6);
 
-        // AI insight
-        $prevMonthExpense = $user->transactions()->completed()->byMonth($year, $month - 1)->where('type', 'expense')->sum('amount');
+        // AI insight — pakai Carbon untuk hitung bulan lalu agar Januari tidak jadi bulan 0
+        $prevMonth        = now()->subMonth();
+        $prevMonthExpense = $user->transactions()->completed()->byMonth($prevMonth->year, $prevMonth->month)->where('type', 'expense')->sum('amount');
         $comparisonPct    = $prevMonthExpense > 0 ? round((($monthlyExpense - $prevMonthExpense) / $prevMonthExpense) * 100, 1) : 0;
         $aiInsight        = $this->getAiInsight($user, $monthlyIncome, $monthlyExpense, $topCategories, $comparisonPct);
 

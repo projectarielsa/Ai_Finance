@@ -38,7 +38,7 @@ class RecurringTransaction extends Model
     /** Hitung next_run_date berikutnya setelah run */
     public function calculateNextRunDate(): \Carbon\Carbon
     {
-        $base = $this->next_run_date;
+        $base = $this->next_run_date->copy();
         return match ($this->frequency) {
             'daily'   => $base->addDay(),
             'weekly'  => $base->addWeek(),

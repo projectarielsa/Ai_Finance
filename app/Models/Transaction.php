@@ -16,7 +16,7 @@ class Transaction extends Model
         'type', 'amount', 'fee', 'currency', 'description', 'notes',
         'merchant', 'reference_number', 'tags', 'attachment',
         'transaction_date', 'source', 'ai_confidence', 'ai_raw_response',
-        'ai_parsed_data', 'status', 'whatsapp_message_id',
+        'ai_parsed_data', 'status', 'telegram_message_id',
         'is_duplicate', 'duplicate_of',
     ];
 

@@ -1,7 +1,7 @@
 {
-    "name": "finance-ai/whatsapp-assistant",
-    "description": "Finance AI WhatsApp Assistant - Smart personal finance powered by Grok AI",
-    "keywords": ["laravel", "finance", "ai", "whatsapp", "grok"],
+    "name": "finance-ai/telegram-assistant",
+    "description": "Finance AI Telegram Assistant - Smart personal finance powered by Groq AI",
+    "keywords": ["laravel", "finance", "ai", "telegram", "groq"],
     "license": "MIT",
     "require": {
         "php": "^8.2",
@@ -11,10 +11,7 @@
         "laravel/tinker": "^2.10",
         "maatwebsite/excel": "^3.1",
         "barryvdh/laravel-dompdf": "^3.0",
-        "intervention/image": "^3.0",
-        "spatie/laravel-activitylog": "^4.7",
-        "spatie/laravel-permission": "^6.0",
-        "league/flysystem-aws-s3-v3": "^3.0"
+        "intervention/image": "^3.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

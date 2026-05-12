@@ -94,7 +94,7 @@ class ReceiptScannerService
                         : '';
 
         return [
-            'success'      => false,
+            'success'      => true,
             'needs_wallet' => true,
             'receipt_scan' => $receiptScan,
             'amount'       => $amount,
@@ -209,7 +209,8 @@ class ReceiptScannerService
                 $wallet = Wallet::lockForUpdate()->findOrFail($wallet->id);
 
                 if (!$wallet->hasSufficientBalance($amount)) {
-                    return null;
+                    // Throw exception agar DB::transaction melakukan rollback
+                    throw new \RuntimeException('insufficient_balance');
                 }
 
                 $transaction = Transaction::create([

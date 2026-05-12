@@ -152,8 +152,34 @@ class WalletController extends Controller
     {
         $this->authorizeWallet($wallet);
         $request->validate(['balance' => 'required|numeric|min:0']);
-        $wallet->update(['balance' => $request->balance]);
-        return response()->json(['success' => true, 'balance' => $wallet->balance]);
+
+        $newBalance = (float) $request->balance;
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($wallet, $newBalance) {
+            // Lock row agar tidak ada race condition dari request bersamaan
+            $wallet = Wallet::lockForUpdate()->findOrFail($wallet->id);
+
+            $oldBalance = (float) $wallet->balance;
+            $diff       = $newBalance - $oldBalance;
+
+            if ($diff == 0) return;
+
+            $wallet->update(['balance' => $newBalance]);
+
+            // Audit trail
+            \App\Models\Transaction::create([
+                'user_id'          => $wallet->user_id,
+                'wallet_id'        => $wallet->id,
+                'type'             => $diff > 0 ? 'income' : 'expense',
+                'amount'           => abs($diff),
+                'description'      => 'Penyesuaian saldo manual',
+                'transaction_date' => now(),
+                'source'           => 'manual',
+                'status'           => 'completed',
+            ]);
+        });
+
+        return response()->json(['success' => true, 'balance' => $wallet->fresh()->balance]);
     }
 
     protected function authorizeWallet(Wallet $wallet): void

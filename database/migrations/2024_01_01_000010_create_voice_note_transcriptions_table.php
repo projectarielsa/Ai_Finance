@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('transaction_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('whatsapp_message_id')->nullable()->constrained('whatsapp_messages')->nullOnDelete();
+            $table->unsignedBigInteger('message_id')->nullable(); // telegram_message record id (no FK — table renamed)
             $table->string('audio_path');
             $table->string('audio_format')->nullable();
             $table->integer('duration_seconds')->nullable();

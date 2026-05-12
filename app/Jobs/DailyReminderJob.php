@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\User;
 use App\Services\TelegramBotService;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -22,15 +23,33 @@ class DailyReminderJob implements ShouldQueue
 
     public function handle(TelegramBotService $telegram): void
     {
-        $now = now();
+        $serverHour = $this->reminderHour; // jam server (UTC atau timezone server)
 
-        // Ambil semua user yang punya Telegram aktif + reminder enabled + jam reminder = sekarang
+        // Ambil semua user yang punya Telegram aktif + reminder enabled
         $users = User::where('is_active', true)
             ->where('daily_reminder_enabled', true)
             ->where('telegram_notifications', true)
             ->whereNotNull('telegram_id')
             ->get()
-            ->filter(fn($u) => substr($u->daily_reminder_time ?? '21:00', 0, 2) === $this->reminderHour);
+            ->filter(function ($u) use ($serverHour) {
+                // Konversi jam reminder user ke timezone server untuk perbandingan yang benar
+                $userTz       = $u->timezone ?? 'Asia/Jakarta';
+                $reminderTime = $u->daily_reminder_time ?? '21:00';
+                $userHour     = substr($reminderTime, 0, 2); // "21"
+
+                // Buat Carbon di timezone user dengan jam reminder, lalu konversi ke server time
+                try {
+                    $reminderInServerTz = \Carbon\Carbon::createFromFormat('H:i', $reminderTime, $userTz)
+                        ->setToday()
+                        ->timezone(config('app.timezone', 'UTC'))
+                        ->format('H');
+                } catch (\Throwable $e) {
+                    // Fallback jika timezone tidak valid: bandingkan langsung (tidak akurat)
+                    $reminderInServerTz = $userHour;
+                }
+
+                return $reminderInServerTz === $serverHour;
+            });
 
         foreach ($users as $user) {
             try {

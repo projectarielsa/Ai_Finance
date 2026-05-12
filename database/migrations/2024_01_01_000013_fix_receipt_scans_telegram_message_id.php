@@ -1,40 +1,23 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 
+/**
+ * Migration ini sebelumnya mencoba drop FK whatsapp_message_id dan rename ke message_id.
+ * Namun migration 000009 & 000010 sudah langsung mendefinisikan kolom message_id (tanpa FK),
+ * sehingga migration ini tidak perlu melakukan apa-apa pada fresh install.
+ *
+ * Dibiarkan kosong agar tidak crash pada environment baru maupun yang sudah ada.
+ */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('receipt_scans', function (Blueprint $table) {
-            // Drop the FK constraint so we can store telegram_message_id too
-            $table->dropForeign(['whatsapp_message_id']);
-            // Rename to generic message_id (nullable unsignedBigInteger — no FK)
-            $table->renameColumn('whatsapp_message_id', 'message_id');
-        });
-
-        Schema::table('voice_note_transcriptions', function (Blueprint $table) {
-            $table->dropForeign(['whatsapp_message_id']);
-            $table->renameColumn('whatsapp_message_id', 'message_id');
-        });
+        // No-op: kolom message_id sudah dibuat dengan benar di migration 000009 & 000010
     }
 
     public function down(): void
     {
-        Schema::table('receipt_scans', function (Blueprint $table) {
-            $table->renameColumn('message_id', 'whatsapp_message_id');
-            $table->foreign('whatsapp_message_id')
-                  ->references('id')->on('whatsapp_messages')
-                  ->nullOnDelete();
-        });
-
-        Schema::table('voice_note_transcriptions', function (Blueprint $table) {
-            $table->renameColumn('message_id', 'whatsapp_message_id');
-            $table->foreign('whatsapp_message_id')
-                  ->references('id')->on('whatsapp_messages')
-                  ->nullOnDelete();
-        });
+        // No-op
     }
 };
