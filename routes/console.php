@@ -21,7 +21,7 @@ Schedule::job(new \App\Jobs\CheckBudgetAlerts)->everyFourHours()->name('check-bu
 // Jalankan setiap jam penuh; job sendiri yang filter berdasarkan daily_reminder_time user
 Schedule::call(function () {
     $currentHour = now()->format('H'); // "21", "08", dst
-    \App\Jobs\DailyReminderJob::dispatch($currentHour)->onQueue('notifications');
+    \App\Jobs\DailyReminderJob::dispatch($currentHour);
 })->hourly()->name('daily-reminders');
 
 // ── Weekly summary — setiap Senin jam 07:30 ──────────────────────────────────
@@ -35,6 +35,7 @@ Schedule::call(function () {
     \App\Models\User::where('is_active', true)
         ->where('telegram_notifications', true)
         ->whereNotNull('telegram_id')
+        ->where('minimum_balance_warning', '>', 0) // skip jika threshold = 0
         ->each(function ($user) {
             $lowBalanceWallets = $user->wallets()
                 ->where('is_active', true)
