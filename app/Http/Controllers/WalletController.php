@@ -154,17 +154,19 @@ class WalletController extends Controller
         $request->validate(['balance' => 'required|numeric|min:0']);
 
         $newBalance = (float) $request->balance;
-        $oldBalance = (float) $wallet->balance;
-        $diff       = $newBalance - $oldBalance;
 
-        if ($diff == 0) {
-            return response()->json(['success' => true, 'balance' => $wallet->balance]);
-        }
+        \Illuminate\Support\Facades\DB::transaction(function () use ($wallet, $newBalance) {
+            // Lock row agar tidak ada race condition dari request bersamaan
+            $wallet = Wallet::lockForUpdate()->findOrFail($wallet->id);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($wallet, $newBalance, $diff) {
+            $oldBalance = (float) $wallet->balance;
+            $diff       = $newBalance - $oldBalance;
+
+            if ($diff == 0) return;
+
             $wallet->update(['balance' => $newBalance]);
 
-            // Create audit trail transaction
+            // Audit trail
             \App\Models\Transaction::create([
                 'user_id'          => $wallet->user_id,
                 'wallet_id'        => $wallet->id,
