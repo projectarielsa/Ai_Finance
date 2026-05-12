@@ -17,25 +17,23 @@ Schedule::job(new \App\Jobs\ProcessRecurringTransactions)->dailyAt('07:00')->nam
 // ── Budget alerts — setiap 4 jam ─────────────────────────────────────────────
 Schedule::job(new \App\Jobs\CheckBudgetAlerts)->everyFourHours()->name('check-budget-alerts');
 
-// ── Daily reminder — cek setiap jam, dispatch ke user yang jam reminder-nya = sekarang ──
-// Jalankan setiap jam penuh; job sendiri yang filter berdasarkan daily_reminder_time user
+// ── Daily reminder — cek setiap jam ──────────────────────────────────────────
 Schedule::call(function () {
-    $currentHour = now()->format('H'); // "21", "08", dst
+    $currentHour = now()->format('H');
     \App\Jobs\DailyReminderJob::dispatch($currentHour);
 })->hourly()->name('daily-reminders');
 
 // ── Weekly summary — setiap Senin jam 07:30 ──────────────────────────────────
 Schedule::job(new \App\Jobs\WeeklySummaryJob)
-    ->weeklyOn(1, '07:30') // 1 = Senin
-    ->name('weekly-summary')
-    ->onQueue('notifications');
+    ->weeklyOn(1, '07:30')
+    ->name('weekly-summary');
 
 // ── Minimum balance check — setiap hari jam 09:00 ────────────────────────────
 Schedule::call(function () {
     \App\Models\User::where('is_active', true)
         ->where('telegram_notifications', true)
         ->whereNotNull('telegram_id')
-        ->where('minimum_balance_warning', '>', 0) // skip jika threshold = 0
+        ->where('minimum_balance_warning', '>', 0)
         ->each(function ($user) {
             $lowBalanceWallets = $user->wallets()
                 ->where('is_active', true)
