@@ -76,15 +76,17 @@ class ProcessRecurringTransactions implements ShouldQueue
                 // Kirim notifikasi Telegram
                 $user = $recurring->user;
                 if ($user->telegram_id && $user->telegram_notifications) {
-                    $icon   = match ($recurring->type) { 'income' => '💰', 'expense' => '💸', default => '🔄' };
-                    $amount = 'Rp' . number_format($recurring->amount, 0, ',', '.');
+                    $icon      = match ($recurring->type) { 'income' => '💰', 'expense' => '💸', default => '🔄' };
+                    $amount    = 'Rp' . number_format($recurring->amount, 0, ',', '.');
+                    $freshData = $recurring->fresh();
+                    $nextLabel = $freshData?->next_run_date?->format('d M Y') ?? '-';
                     $telegram->sendMessage(
                         $user->telegram_id,
                         "{$icon} *Transaksi Berulang Dicatat*\n" .
                         "{$recurring->title}\n" .
                         "Jumlah: {$amount}\n" .
                         "Wallet: {$recurring->wallet->name}\n" .
-                        "_Jadwal berikutnya: " . $recurring->fresh()->next_run_date->format('d M Y') . "_"
+                        "_Jadwal berikutnya: {$nextLabel}_"
                     );
                 }
             } catch (\Throwable $e) {
