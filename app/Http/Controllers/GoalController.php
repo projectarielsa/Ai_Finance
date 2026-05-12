@@ -97,29 +97,33 @@ class GoalController extends Controller
         $user   = Auth::user();
         $amount = (float) $data['amount'];
 
-        DB::transaction(function () use ($goal, $amount, $data, $user) {
-            // Debit dari wallet jika dipilih
-            if (!empty($data['wallet_id'])) {
-                $wallet = Wallet::lockForUpdate()->findOrFail($data['wallet_id']);
-                if (!$wallet->hasSufficientBalance($amount)) {
-                    throw new \Exception("Saldo {$wallet->name} tidak cukup.");
+        try {
+            DB::transaction(function () use ($goal, $amount, $data, $user) {
+                // Debit dari wallet jika dipilih
+                if (!empty($data['wallet_id'])) {
+                    $wallet = Wallet::lockForUpdate()->findOrFail($data['wallet_id']);
+                    if (!$wallet->hasSufficientBalance($amount)) {
+                        throw new \Exception("Saldo {$wallet->name} tidak cukup.");
+                    }
+                    $wallet->debit($amount);
+
+                    Transaction::create([
+                        'user_id'          => $user->id,
+                        'wallet_id'        => $data['wallet_id'],
+                        'type'             => 'expense',
+                        'amount'           => $amount,
+                        'description'      => "Tabungan tujuan: {$goal->title}",
+                        'transaction_date' => now(),
+                        'source'           => 'manual',
+                        'status'           => 'completed',
+                    ]);
                 }
-                $wallet->debit($amount);
 
-                Transaction::create([
-                    'user_id'          => $user->id,
-                    'wallet_id'        => $data['wallet_id'],
-                    'type'             => 'expense',
-                    'amount'           => $amount,
-                    'description'      => "Tabungan tujuan: {$goal->title}",
-                    'transaction_date' => now(),
-                    'source'           => 'manual',
-                    'status'           => 'completed',
-                ]);
-            }
-
-            $goal->addFunds($amount);
-        });
+                $goal->addFunds($amount);
+            });
+        } catch (\Exception $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', 'Dana berhasil ditambahkan ke tujuan!');
     }

@@ -65,6 +65,9 @@ class AppSettingService
 
     public function clearCache(): void
     {
-        Cache::flush();
+        // Clear only AI/settings related cache keys — do NOT flush entire cache
+        Cache::forget('app_settings');
+        Cache::forget('ai_credential_' . $this->getAiProvider());
+        Cache::forget('api_credential_default_' . $this->getAiProvider());
     }
 }

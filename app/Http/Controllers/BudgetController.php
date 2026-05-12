@@ -40,7 +40,7 @@ class BudgetController extends Controller
             'category_id'  => 'required|exists:categories,id',
             'limit_amount' => 'required|numeric|min:1000',
             'month'        => 'required|integer|between:1,12',
-            'year'         => 'required|integer|min:2020|max:2030',
+            'year'         => 'required|integer|min:2020|max:' . (now()->year + 10),
             'alert_at_80'  => 'nullable|boolean',
             'alert_at_100' => 'nullable|boolean',
             'notes'        => 'nullable|string|max:255',

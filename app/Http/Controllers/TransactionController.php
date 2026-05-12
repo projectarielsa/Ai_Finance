@@ -60,54 +60,69 @@ class TransactionController extends Controller
             'attachment'       => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
-        $user   = Auth::user();
-        $wallet = Wallet::where('id', $data['wallet_id'])->where('user_id', $user->id)->firstOrFail();
+        $user = Auth::user();
 
-        // Balance validation
-        if (in_array($data['type'], ['expense', 'transfer'])) {
-            if (!$wallet->hasSufficientBalance((float)$data['amount'])) {
-                return back()->withInput()->with('error', "Saldo {$wallet->name} tidak cukup. Saldo saat ini: " . $wallet->formatted_balance);
-            }
-        }
-
-        $targetWallet = null;
-        if ($data['type'] === 'transfer' && !empty($data['target_wallet_id'])) {
-            $targetWallet = Wallet::where('id', $data['target_wallet_id'])->where('user_id', $user->id)->firstOrFail();
-        }
-
-        // Handle attachment
+        // Handle attachment before transaction
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
             $attachmentPath = $request->file('attachment')->store('receipts/' . date('Y/m'), 'public');
         }
 
-        DB::transaction(function () use ($data, $user, $wallet, $targetWallet, $attachmentPath) {
-            $transaction = Transaction::create([
-                'user_id'          => $user->id,
-                'wallet_id'        => $wallet->id,
-                'target_wallet_id' => $targetWallet?->id,
-                'category_id'      => $data['category_id'] ?? null,
-                'type'             => $data['type'],
-                'amount'           => $data['amount'],
-                'description'      => $data['description'] ?? null,
-                'notes'            => $data['notes'] ?? null,
-                'merchant'         => $data['merchant'] ?? null,
-                'attachment'       => $attachmentPath,
-                'transaction_date' => $data['transaction_date'],
-                'source'           => 'manual',
-                'status'           => 'completed',
-            ]);
+        $targetWalletId = ($data['type'] === 'transfer' && !empty($data['target_wallet_id']))
+            ? $data['target_wallet_id']
+            : null;
 
-            // Update balances
-            match($data['type']) {
-                'income'   => $wallet->credit($data['amount']),
-                'expense'  => $wallet->debit($data['amount']),
-                'transfer' => (function() use ($wallet, $targetWallet, $data) {
-                    $wallet->debit($data['amount']);
-                    $targetWallet?->credit($data['amount']);
-                })(),
-            };
-        });
+        try {
+            DB::transaction(function () use ($data, $user, $attachmentPath, $targetWalletId) {
+                $wallet = Wallet::lockForUpdate()
+                    ->where('id', $data['wallet_id'])
+                    ->where('user_id', $user->id)
+                    ->firstOrFail();
+
+                // Balance validation inside transaction (prevents race condition)
+                if (in_array($data['type'], ['expense', 'transfer'])) {
+                    if (!$wallet->hasSufficientBalance((float)$data['amount'])) {
+                        throw new \Exception("Saldo {$wallet->name} tidak cukup. Saldo saat ini: " . $wallet->formatted_balance);
+                    }
+                }
+
+                $targetWallet = null;
+                if ($targetWalletId) {
+                    $targetWallet = Wallet::lockForUpdate()
+                        ->where('id', $targetWalletId)
+                        ->where('user_id', $user->id)
+                        ->firstOrFail();
+                }
+
+                Transaction::create([
+                    'user_id'          => $user->id,
+                    'wallet_id'        => $wallet->id,
+                    'target_wallet_id' => $targetWallet?->id,
+                    'category_id'      => $data['category_id'] ?? null,
+                    'type'             => $data['type'],
+                    'amount'           => $data['amount'],
+                    'description'      => $data['description'] ?? null,
+                    'notes'            => $data['notes'] ?? null,
+                    'merchant'         => $data['merchant'] ?? null,
+                    'attachment'       => $attachmentPath,
+                    'transaction_date' => $data['transaction_date'],
+                    'source'           => 'manual',
+                    'status'           => 'completed',
+                ]);
+
+                // Update balances
+                match($data['type']) {
+                    'income'   => $wallet->credit($data['amount']),
+                    'expense'  => $wallet->debit($data['amount']),
+                    'transfer' => (function() use ($wallet, $targetWallet, $data) {
+                        $wallet->debit($data['amount']);
+                        $targetWallet?->credit($data['amount']);
+                    })(),
+                };
+            });
+        } catch (\Exception $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         return redirect()->route('transactions.index')->with('success', 'Transaksi berhasil disimpan!');
     }

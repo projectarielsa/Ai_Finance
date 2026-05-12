@@ -134,13 +134,13 @@ PROMPT;
             $parsed   = $this->extractJson($content);
 
             $this->logRequest($user->id, 'receipt_scan', 'image_input', $content,
-                $response['usage'] ?? [], $duration, true);
+                $response['usage'] ?? [], $duration, true, null, $this->visionModel);
 
             return $parsed;
         } catch (\Throwable $e) {
             $duration = (int)((microtime(true) - $startTime) * 1000);
             $this->logRequest($user->id, 'receipt_scan', 'image_input', null,
-                [], $duration, false, $e->getMessage());
+                [], $duration, false, $e->getMessage(), $this->visionModel);
             Log::error('AI scanReceipt error: ' . $e->getMessage());
             return ['error' => 'Receipt scan failed', 'confidence' => 0];
         }
@@ -170,52 +170,26 @@ PROMPT;
             @unlink($tempFile);
 
             if (!$response->successful()) {
-                // Fallback: Use text model to "transcribe" via vision
-                return $this->transcribeViaVision($audioBase64, $mimeType, $user);
+                $duration = (int)((microtime(true) - $startTime) * 1000);
+                $this->logRequest($user->id, 'voice_transcription', 'audio_input', null,
+                    [], $duration, false, 'Whisper API error: ' . $response->body(), 'whisper-large-v3');
+                return ['error' => 'Transkripsi audio gagal. Silakan kirim pesan teks.', 'success' => false];
             }
 
             $duration      = (int)((microtime(true) - $startTime) * 1000);
             $transcription = trim($response->json('text', ''));
 
             $this->logRequest($user->id, 'voice_transcription', 'audio_input', $transcription,
-                [], $duration, true);
+                [], $duration, true, null, 'whisper-large-v3');
 
             return ['transcription' => $transcription, 'success' => !empty($transcription)];
         } catch (\Throwable $e) {
-            // Fallback to vision model
-            return $this->transcribeViaVision($audioBase64, $mimeType, $user);
-        }
-    }
-
-    /**
-     * Fallback transcription via vision model (for providers that don't support Whisper).
-     */
-    protected function transcribeViaVision(string $audioBase64, string $mimeType, User $user): array
-    {
-        $startTime = microtime(true);
-        try {
-            $response = $this->callApi([
-                ['role' => 'system', 'content' => 'Kamu adalah AI transcriber. Ubah audio berikut menjadi teks bahasa Indonesia yang akurat. Kembalikan hanya teks transkrip tanpa format tambahan.'],
-                [
-                    'role' => 'user',
-                    'content' => [
-                        ['type' => 'text', 'text' => 'Transcribe audio ini ke teks bahasa Indonesia:'],
-                        ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$audioBase64}"]],
-                    ],
-                ],
-            ], useVision: true);
-
-            $duration      = (int)((microtime(true) - $startTime) * 1000);
-            $transcription = trim($response['choices'][0]['message']['content'] ?? '');
-
-            $this->logRequest($user->id, 'voice_transcription', 'audio_input', $transcription,
-                $response['usage'] ?? [], $duration, true);
-
-            return ['transcription' => $transcription, 'success' => !empty($transcription)];
-        } catch (\Throwable $e) {
+            $duration = (int)((microtime(true) - $startTime) * 1000);
+            @unlink($tempFile ?? '');
             $this->logRequest($user->id, 'voice_transcription', 'audio_input', null,
-                [], 0, false, $e->getMessage());
-            return ['error' => $e->getMessage(), 'success' => false];
+                [], $duration, false, $e->getMessage(), 'whisper-large-v3');
+            Log::error('AI transcribeAudio error: ' . $e->getMessage());
+            return ['error' => 'Transkripsi audio gagal. Silakan kirim pesan teks.', 'success' => false];
         }
     }
 
@@ -351,12 +325,12 @@ PROMPT;
     }
 
     protected function logRequest(int $userId, string $type, string $prompt, ?string $response,
-        array $usage, int $duration, bool $success, ?string $error = null): void
+        array $usage, int $duration, bool $success, ?string $error = null, ?string $modelOverride = null): void
     {
         AiLog::create([
             'user_id'           => $userId,
             'provider'          => $this->provider,
-            'model'             => $this->model,
+            'model'             => $modelOverride ?? $this->model,
             'type'              => $type,
             'prompt'            => substr($prompt, 0, 2000),
             'response'          => $response ? substr($response, 0, 4000) : null,
