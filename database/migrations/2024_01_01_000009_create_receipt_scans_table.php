@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('transaction_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('whatsapp_message_id')->nullable()->constrained('whatsapp_messages')->nullOnDelete();
+            $table->unsignedBigInteger('message_id')->nullable(); // telegram_message record id (no FK — table renamed)
             $table->string('image_path');
             $table->string('merchant_name')->nullable();
             $table->decimal('total_amount', 15, 2)->nullable();

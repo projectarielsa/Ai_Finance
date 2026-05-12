@@ -152,8 +152,8 @@ PROMPT;
     public function transcribeAudio(string $audioBase64, string $mimeType, User $user): array
     {
         $startTime = microtime(true);
+        $tempFile  = null; // inisialisasi di sini agar selalu terdefinisi di catch block
         try {
-            // Groq supports Whisper for audio transcription via /audio/transcriptions
             $audioContent = base64_decode($audioBase64);
             $tempFile     = tempnam(sys_get_temp_dir(), 'voice_') . '.ogg';
             file_put_contents($tempFile, $audioContent);

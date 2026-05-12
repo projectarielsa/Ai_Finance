@@ -15,7 +15,6 @@ class GoalController extends Controller
     {
         $user  = Auth::user();
         $goals = Goal::where('user_id', $user->id)
-            ->withTrashed(false)
             ->with('wallet')
             ->orderByRaw("FIELD(status,'active','paused','completed','cancelled')")
             ->orderBy('target_date')
@@ -101,7 +100,11 @@ class GoalController extends Controller
             DB::transaction(function () use ($goal, $amount, $data, $user) {
                 // Debit dari wallet jika dipilih
                 if (!empty($data['wallet_id'])) {
-                    $wallet = Wallet::lockForUpdate()->findOrFail($data['wallet_id']);
+                    // Pastikan wallet milik user yang sedang login (cegah IDOR)
+                    $wallet = Wallet::lockForUpdate()
+                        ->where('id', $data['wallet_id'])
+                        ->where('user_id', $user->id)
+                        ->firstOrFail();
                     if (!$wallet->hasSufficientBalance($amount)) {
                         throw new \Exception("Saldo {$wallet->name} tidak cukup.");
                     }

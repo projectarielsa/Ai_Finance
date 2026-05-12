@@ -65,9 +65,16 @@ class AppSettingService
 
     public function clearCache(): void
     {
-        // Clear only AI/settings related cache keys — do NOT flush entire cache
-        Cache::forget('app_settings');
-        Cache::forget('ai_credential_' . $this->getAiProvider());
-        Cache::forget('api_credential_default_' . $this->getAiProvider());
+        // AppSetting::get() menggunakan cache key "setting_{$key}"
+        // ApiCredential::getDefault() tidak menggunakan cache (query langsung)
+        // Forget semua setting key yang umum dipakai
+        $keys = [
+            'ai_provider', 'ai_model', 'ai_vision_model', 'ai_base_url',
+            'groq_api_key', 'telegram_bot_token', 'telegram_webhook_secret',
+            'app_name', 'app_url', 'timezone', 'currency',
+        ];
+        foreach ($keys as $key) {
+            Cache::forget("setting_{$key}");
+        }
     }
 }

@@ -94,7 +94,7 @@ class ReceiptScannerService
                         : '';
 
         return [
-            'success'      => false,
+            'success'      => true,
             'needs_wallet' => true,
             'receipt_scan' => $receiptScan,
             'amount'       => $amount,
