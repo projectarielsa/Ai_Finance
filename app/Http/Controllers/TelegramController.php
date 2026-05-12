@@ -19,24 +19,22 @@ class TelegramController extends Controller
         $payload = $request->all();
         Log::channel('daily')->info('Telegram Webhook received', ['update_id' => $payload['update_id'] ?? null]);
 
-        // Validate Telegram secret token header (optional)
-        // Only block if secret is configured AND header is present but wrong
+        // Validate Telegram secret token header
+        // Reject if: secret is configured AND (header is missing OR header doesn't match)
         $expectedSecret = config('services.telegram.webhook_secret');
         if ($expectedSecret) {
             $provided = $request->header('X-Telegram-Bot-Api-Secret-Token');
-            // If header is present but doesn't match → reject
-            if ($provided !== null && $provided !== $expectedSecret) {
-                Log::warning('Telegram Webhook: invalid secret token');
+            if ($provided !== $expectedSecret) {
+                Log::warning('Telegram Webhook: invalid or missing secret token');
                 return response()->json(['error' => 'Unauthorized'], 401);
             }
         }
 
-        // Process SYNCHRONOUSLY — no queue worker needed
+        // Process via queue for async handling (prevents Telegram 5s timeout)
         try {
-            $webhookService = app(\App\Services\TelegramWebhookService::class);
-            $webhookService->process($payload);
+            ProcessTelegramMessage::dispatch($payload);
         } catch (\Throwable $e) {
-            Log::error('Telegram Webhook sync error: ' . $e->getMessage(), [
+            Log::error('Telegram Webhook dispatch error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
         }

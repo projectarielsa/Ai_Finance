@@ -57,7 +57,8 @@ class ProcessRecurringTransactions implements ShouldQueue
                         'expense'  => $wallet->debit($recurring->amount),
                         'transfer' => (function () use ($recurring, $wallet): void {
                             $wallet->debit($recurring->amount);
-                            Wallet::find($recurring->target_wallet_id)?->credit($recurring->amount);
+                            $targetWallet = Wallet::lockForUpdate()->find($recurring->target_wallet_id);
+                            $targetWallet?->credit($recurring->amount);
                         })(),
                     };
 
