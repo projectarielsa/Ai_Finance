@@ -30,11 +30,12 @@ class TelegramController extends Controller
             }
         }
 
-        // Process via queue for async handling (prevents Telegram 5s timeout)
+        // Process synchronously — no queue worker needed
         try {
-            ProcessTelegramMessage::dispatch($payload);
+            $webhookService = app(\App\Services\TelegramWebhookService::class);
+            $webhookService->process($payload);
         } catch (\Throwable $e) {
-            Log::error('Telegram Webhook dispatch error: ' . $e->getMessage(), [
+            Log::error('Telegram Webhook processing error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
         }
