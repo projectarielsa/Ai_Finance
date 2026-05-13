@@ -304,61 +304,69 @@
 
 @push('scripts')
 <script>
-const chartData = @json($chartData);
-const ctx = document.getElementById('cashflowChart').getContext('2d');
-new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: chartData.labels,
-        datasets: [
-            {
-                label: 'Pemasukan',
-                data: chartData.income,
-                backgroundColor: 'rgba(34,197,94,0.25)',
-                borderColor: 'rgba(34,197,94,0.8)',
-                borderWidth: 2,
-                borderRadius: 6,
-                borderSkipped: false,
-            },
-            {
-                label: 'Pengeluaran',
-                data: chartData.expense,
-                backgroundColor: 'rgba(239,68,68,0.25)',
-                borderColor: 'rgba(239,68,68,0.8)',
-                borderWidth: 2,
-                borderRadius: 6,
-                borderSkipped: false,
-            }
-        ]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: '#1e293b',
-                borderColor: '#334155',
-                borderWidth: 1,
-                titleColor: '#f1f5f9',
-                bodyColor: '#94a3b8',
-                callbacks: {
-                    label: (ctx) => ` Rp${new Intl.NumberFormat('id-ID').format(ctx.raw)}`
+document.addEventListener('DOMContentLoaded', function() {
+    const chartData = @json($chartData);
+    const canvas = document.getElementById('cashflowChart');
+    if (!canvas) return;
+    const chartCtx = canvas.getContext('2d');
+    new Chart(chartCtx, {
+        type: 'bar',
+        data: {
+            labels: chartData.labels,
+            datasets: [
+                {
+                    label: 'Pemasukan',
+                    data: chartData.income,
+                    backgroundColor: 'rgba(34,197,94,0.25)',
+                    borderColor: 'rgba(34,197,94,0.8)',
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                },
+                {
+                    label: 'Pengeluaran',
+                    data: chartData.expense,
+                    backgroundColor: 'rgba(239,68,68,0.25)',
+                    borderColor: 'rgba(239,68,68,0.8)',
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    borderSkipped: false,
                 }
-            }
+            ]
         },
-        scales: {
-            x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 11 } } },
-            y: {
-                grid: { color: 'rgba(255,255,255,0.04)' },
-                ticks: {
-                    color: '#64748b', font: { size: 11 },
-                    callback: (v) => 'Rp' + new Intl.NumberFormat('id-ID', {notation:'compact'}).format(v)
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    borderColor: '#334155',
+                    borderWidth: 1,
+                    titleColor: '#f1f5f9',
+                    bodyColor: '#94a3b8',
+                    callbacks: {
+                        title: function(items) { return 'Tanggal ' + items[0].label; },
+                        label: function(item) { return ' ' + item.dataset.label + ': Rp' + new Intl.NumberFormat('id-ID').format(item.raw); }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    ticks: { color: '#64748b', font: { size: 10 }, maxRotation: 0 }
+                },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    ticks: {
+                        color: '#64748b', font: { size: 11 },
+                        callback: function(v) { return 'Rp' + new Intl.NumberFormat('id-ID', {notation:'compact'}).format(v); }
+                    }
                 }
             }
         }
-    }
+    });
 });
 </script>
 @endpush
