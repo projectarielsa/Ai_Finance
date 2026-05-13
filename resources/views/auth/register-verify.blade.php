@@ -75,7 +75,6 @@
     </p>
 </div>
 
-@push('scripts')
 <script>
 function otpInput() {
     return {
@@ -124,5 +123,4 @@ function otpInput() {
     };
 }
 </script>
-@endpush
 @endsection
