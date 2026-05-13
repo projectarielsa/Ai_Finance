@@ -5,6 +5,12 @@
 <h2 class="text-xl font-bold text-white mb-1">Buat Akun Baru</h2>
 <p class="text-dark-400 text-sm mb-6">Mulai kelola keuangan Anda dengan AI</p>
 
+@if(session('error'))
+<div class="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+    {{ session('error') }}
+</div>
+@endif
+
 @if($errors->any())
 <div class="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm space-y-1">
     @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach
