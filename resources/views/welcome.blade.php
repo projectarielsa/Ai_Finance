@@ -28,9 +28,9 @@
                     Mulai Gratis Sekarang
                     <svg class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                 </a>
-                <a href="#how-it-works" class="inline-flex items-center px-7 py-3.5 rounded-2xl border border-slate-700/60 text-slate-300 font-semibold text-base hover:border-slate-500 hover:text-white hover:bg-slate-800/30 transition-all">
-                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    Lihat Demo
+                <a href="https://t.me/{{ config('services.telegram.bot_username', 'FinanceAIBot') }}" target="_blank" class="inline-flex items-center px-7 py-3.5 rounded-2xl border border-slate-700/60 text-slate-300 font-semibold text-base hover:border-blue-500/50 hover:text-white hover:bg-blue-500/10 transition-all">
+                    <svg class="w-5 h-5 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                    Buka Bot Telegram
                 </a>
             </div>
         </div>
@@ -170,7 +170,11 @@
             <div class="text-center p-6">
                 <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold mx-auto mb-5 shadow-lg shadow-purple-500/30">2</div>
                 <h3 class="text-white font-semibold text-lg mb-2">Hubungkan Telegram</h3>
-                <p class="text-slate-400 text-sm leading-relaxed">Kirim <code class="text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded text-xs">/link email@kamu.com</code> ke bot.</p>
+                <p class="text-slate-400 text-sm leading-relaxed mb-3">Kirim <code class="text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded text-xs">/link email@kamu.com</code> ke bot.</p>
+                <a href="https://t.me/{{ config('services.telegram.bot_username', 'FinanceAIBot') }}" target="_blank" class="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                    Buka @{{ config('services.telegram.bot_username', 'FinanceAIBot') }}
+                </a>
             </div>
             <div class="text-center p-6">
                 <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-2xl font-bold mx-auto mb-5 shadow-lg shadow-emerald-500/30">3</div>
