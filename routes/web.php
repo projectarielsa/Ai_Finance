@@ -27,7 +27,10 @@ Route::middleware('guest')->group(function () {
     Route::get('login',    [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('login',   [LoginController::class, 'login'])->middleware('throttle:10,1');
     Route::get('register', [RegisterController::class, 'showRegistrationForm'])->name('register');
-    Route::post('register',[RegisterController::class, 'register']);
+    Route::post('register',[RegisterController::class, 'register'])->middleware('throttle:5,1');
+    Route::get('register/verify',  [RegisterController::class, 'showVerifyForm'])->name('register.verify');
+    Route::post('register/verify', [RegisterController::class, 'verify'])->middleware('throttle:10,1')->name('register.verify.submit');
+    Route::post('register/resend', [RegisterController::class, 'resendOtp'])->middleware('throttle:3,1')->name('register.verify.resend');
     Route::get('forgot-password',         [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
     Route::post('forgot-password',        [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
     Route::get('reset-password/{token}',  [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
