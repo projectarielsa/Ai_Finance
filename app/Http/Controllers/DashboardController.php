@@ -123,8 +123,8 @@ class DashboardController extends Controller
         $expense = [];
 
         for ($day = 1; $day <= $daysInMonth; $day++) {
-            $labels[]  = $day;
-            $group     = $rows->get($day, collect());
+            $labels[]  = (string) $day;
+            $group     = $rows->get((string) $day, collect());
             $income[]  = (float) ($group->firstWhere('type', 'income')?->total ?? 0);
             $expense[] = (float) ($group->firstWhere('type', 'expense')?->total ?? 0);
         }
