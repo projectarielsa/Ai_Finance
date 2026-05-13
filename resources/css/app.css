@@ -5,7 +5,6 @@
 @tailwind utilities;
 
 @layer base {
-    html { @apply dark; }
     body {
         @apply bg-dark-950 text-dark-100 font-sans antialiased;
         background-image: radial-gradient(ellipse at top, rgba(59,130,246,0.05) 0%, transparent 60%);
