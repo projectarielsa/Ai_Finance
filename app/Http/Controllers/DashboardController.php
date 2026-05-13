@@ -33,9 +33,10 @@ class DashboardController extends Controller
         $monthlyTransfer = $user->transactions()->completed()->byMonth($year, $month)->where('type', 'transfer')->sum('amount');
         $netCashflow     = $monthlyIncome - $monthlyExpense;
 
-        // Recent transactions
+        // Recent transactions (bulan ini saja)
         $recentTransactions = $user->transactions()
             ->with(['wallet', 'category', 'targetWallet'])
+            ->byMonth($year, $month)
             ->orderBy('transaction_date', 'desc')
             ->limit(10)
             ->get();
