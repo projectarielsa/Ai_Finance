@@ -75,7 +75,7 @@
             <div class="flex items-center justify-between mb-5">
                 <div>
                     <h3 class="text-white font-semibold">Pemasukan vs Pengeluaran</h3>
-                    <p class="text-dark-400 text-xs mt-0.5">6 bulan terakhir</p>
+                    <p class="text-dark-400 text-xs mt-0.5">{{ now()->format('F Y') }} — per hari</p>
                 </div>
                 <div class="flex items-center gap-4 text-xs">
                     <span class="flex items-center gap-1.5 text-dark-300"><span class="w-3 h-3 rounded-full bg-green-400"></span>Pemasukan</span>
