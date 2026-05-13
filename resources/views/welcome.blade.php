@@ -3,91 +3,229 @@
 
 @section('content')
 {{-- Hero Section --}}
-<section class="pt-32 pb-20 md:pt-40 md:pb-32 relative overflow-hidden">
-    {{-- Background decorations --}}
-    <div class="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl"></div>
-    <div class="absolute bottom-10 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+<section class="pt-28 pb-16 md:pt-36 md:pb-24 relative overflow-hidden">
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-blue-500/5 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-3xl"></div>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div class="text-center max-w-4xl mx-auto">
-            {{-- Badge --}}
-            <div class="animate-fade-up inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-8">
-                <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                Powered by AI
+            <div class="animate-fade-up inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold uppercase tracking-wide mb-8">
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                AI-Powered Finance Manager
             </div>
 
-            {{-- Headline --}}
-            <h1 class="animate-fade-up delay-100 text-4xl md:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6">
-                Kelola Keuangan<br>
-                <span class="gradient-text">Lebih Cerdas</span> dengan AI
+            <h1 class="animate-fade-up delay-100 text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-6 tracking-tight">
+                Catat Keuangan<br>
+                Semudah <span class="gradient-text">Chat</span>
             </h1>
 
-            {{-- Subtitle --}}
-            <p class="animate-fade-up delay-200 text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-                Catat transaksi cukup kirim pesan di Telegram. Scan struk otomatis. Dapatkan insight keuangan real-time. Semua dalam satu aplikasi.
+            <p class="animate-fade-up delay-200 text-base md:text-lg text-slate-400 max-w-xl mx-auto mb-10 leading-relaxed">
+                Kirim pesan ke Telegram, foto struk, atau voice note. AI mencatat semuanya otomatis. Tanpa ribet, tanpa lupa.
             </p>
 
-            {{-- CTA Buttons --}}
             <div class="animate-fade-up delay-300 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <a href="{{ route('register') }}" class="inline-flex items-center px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold text-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-xl shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105">
-                    Mulai Gratis
-                    <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                <a href="{{ route('register') }}" class="group inline-flex items-center px-7 py-3.5 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold text-base hover:from-blue-600 hover:to-purple-700 transition-all shadow-xl shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.03]">
+                    Mulai Gratis Sekarang
+                    <svg class="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                 </a>
-                <a href="#how-it-works" class="inline-flex items-center px-8 py-4 rounded-2xl border border-slate-700 text-slate-300 font-semibold hover:border-slate-500 hover:text-white transition-all">
-                    Lihat Cara Kerja
+                <a href="#how-it-works" class="inline-flex items-center px-7 py-3.5 rounded-2xl border border-slate-700/60 text-slate-300 font-semibold text-base hover:border-slate-500 hover:text-white hover:bg-slate-800/30 transition-all">
+                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Lihat Demo
                 </a>
             </div>
+        </div>
 
-            {{-- Stats --}}
-            <div class="animate-fade-up delay-400 mt-16 grid grid-cols-3 gap-8 max-w-lg mx-auto">
-                <div>
-                    <p class="text-2xl md:text-3xl font-bold text-white">100%</p>
-                    <p class="text-slate-500 text-sm mt-1">Gratis Mulai</p>
+        {{-- Chat Mockup --}}
+        <div class="mt-16 md:mt-20 animate-fade-up delay-400">
+            <div class="glass-card-landing rounded-3xl p-5 md:p-8 max-w-3xl mx-auto glow-blue">
+                <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-700/30">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <img src="{{ asset('img/logo.svg') }}" class="w-6 h-6">
+                    </div>
+                    <div>
+                        <p class="text-white text-sm font-semibold">Finance AI Bot</p>
+                        <p class="text-green-400 text-xs flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-400"></span> Online</p>
+                    </div>
                 </div>
-                <div>
-                    <p class="text-2xl md:text-3xl font-bold text-white">AI</p>
-                    <p class="text-slate-500 text-sm mt-1">Powered</p>
-                </div>
-                <div>
-                    <p class="text-2xl md:text-3xl font-bold text-white">24/7</p>
-                    <p class="text-slate-500 text-sm mt-1">Via Telegram</p>
+                <div class="space-y-4">
+                    <div class="flex items-end gap-2">
+                        <div class="bg-slate-800/80 rounded-2xl rounded-bl-md px-4 py-2.5 max-w-[70%]">
+                            <p class="text-slate-200 text-sm">beli kopi starbucks 55rb gopay</p>
+                            <p class="text-slate-500 text-[10px] mt-1 text-right">09:32</p>
+                        </div>
+                    </div>
+                    <div class="flex items-end gap-2 justify-end">
+                        <div class="bg-blue-600/20 border border-blue-500/20 rounded-2xl rounded-br-md px-4 py-2.5 max-w-[75%]">
+                            <p class="text-slate-100 text-sm">Tercatat! Pengeluaran <strong>Rp55.000</strong></p>
+                            <p class="text-slate-300 text-xs mt-1">Kategori: Makanan & Minuman</p>
+                            <p class="text-slate-300 text-xs">Wallet: GoPay (sisa Rp445.000)</p>
+                            <p class="text-slate-500 text-[10px] mt-1.5 text-right">09:32</p>
+                        </div>
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <div class="bg-slate-800/80 rounded-2xl rounded-bl-md px-4 py-2.5 max-w-[70%]">
+                            <p class="text-slate-200 text-sm">bulan ini udah habis berapa ya?</p>
+                            <p class="text-slate-500 text-[10px] mt-1 text-right">09:33</p>
+                        </div>
+                    </div>
+                    <div class="flex items-end gap-2 justify-end">
+                        <div class="bg-blue-600/20 border border-blue-500/20 rounded-2xl rounded-br-md px-4 py-2.5 max-w-[75%]">
+                            <p class="text-slate-100 text-sm font-medium">Pengeluaran Mei 2026:</p>
+                            <p class="text-slate-200 text-sm mt-1">Rp2.450.000 dari 47 transaksi</p>
+                            <p class="text-emerald-400 text-xs mt-1.5">Masih dalam budget! Sisa Rp1.550.000</p>
+                            <p class="text-slate-500 text-[10px] mt-1.5 text-right">09:33</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        {{-- Hero Mockup --}}
-        <div class="mt-20 animate-float">
-            <div class="glass-hero rounded-3xl p-6 md:p-8 max-w-4xl mx-auto">
-                <div class="bg-slate-900 rounded-2xl p-4 md:p-6 border border-slate-800">
-                    {{-- Mockup chat --}}
-                    <div class="space-y-4">
-                        <div class="flex items-start gap-3">
-                            <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-sm">👤</div>
-                            <div class="bg-slate-800 rounded-2xl rounded-tl-none px-4 py-3 max-w-xs">
-                                <p class="text-slate-200 text-sm">beli kopi 25rb gopay</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3 flex-row-reverse">
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm">🤖</div>
-                            <div class="bg-blue-500/10 border border-blue-500/20 rounded-2xl rounded-tr-none px-4 py-3 max-w-sm">
-                                <p class="text-slate-200 text-sm">Tercatat! Pengeluaran Rp25.000 untuk Kopi dari GoPay.</p>
-                                <p class="text-slate-400 text-xs mt-2">Saldo GoPay: Rp475.000</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3">
-                            <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-sm">👤</div>
-                            <div class="bg-slate-800 rounded-2xl rounded-tl-none px-4 py-3 max-w-xs">
-                                <p class="text-slate-200 text-sm">berapa pengeluaran bulan ini?</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3 flex-row-reverse">
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm">🤖</div>
-                            <div class="bg-blue-500/10 border border-blue-500/20 rounded-2xl rounded-tr-none px-4 py-3 max-w-sm">
-                                <p class="text-slate-200 text-sm font-medium">Pengeluaran Mei 2026:</p>
-                                <p class="text-slate-300 text-sm mt-1">Rp2.450.000 dari 47 transaksi</p>
-                                <p class="text-green-400 text-xs mt-2">Masih dalam budget! Sisa Rp1.550.000</p>
-                            </div>
-                        </div>
+        {{-- Trust indicators --}}
+        <div class="mt-14 animate-fade-up delay-500">
+            <div class="flex flex-wrap items-center justify-center gap-8 md:gap-14">
+                <div class="text-center">
+                    <p class="text-2xl md:text-3xl font-bold text-white">100%</p>
+                    <p class="text-slate-500 text-xs mt-1">Gratis untuk mulai</p>
+                </div>
+                <div class="w-px h-8 bg-slate-800 hidden sm:block"></div>
+                <div class="text-center">
+                    <p class="text-2xl md:text-3xl font-bold text-white">3 detik</p>
+                    <p class="text-slate-500 text-xs mt-1">Catat transaksi</p>
+                </div>
+                <div class="w-px h-8 bg-slate-800 hidden sm:block"></div>
+                <div class="text-center">
+                    <p class="text-2xl md:text-3xl font-bold text-white">24/7</p>
+                    <p class="text-slate-500 text-xs mt-1">Bot selalu aktif</p>
+                </div>
+                <div class="w-px h-8 bg-slate-800 hidden sm:block"></div>
+                <div class="text-center">
+                    <p class="text-2xl md:text-3xl font-bold text-white">AI</p>
+                    <p class="text-slate-500 text-xs mt-1">Smart insights</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{{-- Features Section --}}
+<section id="features" class="py-20 md:py-28">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-14">
+            <p class="text-blue-400 text-sm font-semibold uppercase tracking-wide mb-3">Fitur Lengkap</p>
+            <h2 class="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">Semua yang Kamu Butuhkan</h2>
+            <p class="text-slate-400 text-base max-w-lg mx-auto">Satu platform untuk semua kebutuhan pencatatan keuangan pribadi</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div class="feature-card rounded-2xl p-7">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/5 border border-blue-500/20 flex items-center justify-center text-xl mb-5">💬</div>
+                <h3 class="text-white font-semibold text-base mb-2">Input Natural via Telegram</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Ketik bebas seperti "makan siang 35rb cash" — AI mengerti dan langsung catat.</p>
+            </div>
+            <div class="feature-card rounded-2xl p-7">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-500/5 border border-purple-500/20 flex items-center justify-center text-xl mb-5">📸</div>
+                <h3 class="text-white font-semibold text-base mb-2">Scan Struk Otomatis</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Foto struk/nota belanja, AI membaca semua item dan total secara otomatis.</p>
+            </div>
+            <div class="feature-card rounded-2xl p-7">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-green-500/20 to-green-500/5 border border-green-500/20 flex items-center justify-center text-xl mb-5">🎤</div>
+                <h3 class="text-white font-semibold text-base mb-2">Voice Note Transcription</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Rekam suara "bayar listrik 350ribu BCA" — AI transkripsi dan catat otomatis.</p>
+            </div>
+            <div class="feature-card rounded-2xl p-7">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/20 flex items-center justify-center text-xl mb-5">📊</div>
+                <h3 class="text-white font-semibold text-base mb-2">AI Insight & Laporan</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Rekapan otomatis, analisis tren pengeluaran, dan saran penghematan dari AI.</p>
+            </div>
+            <div class="feature-card rounded-2xl p-7">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500/20 to-rose-500/5 border border-rose-500/20 flex items-center justify-center text-xl mb-5">🎯</div>
+                <h3 class="text-white font-semibold text-base mb-2">Budget & Target Tabungan</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Set budget per kategori dan goals tabungan. Alert otomatis saat mendekati limit.</p>
+            </div>
+            <div class="feature-card rounded-2xl p-7">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-500/5 border border-cyan-500/20 flex items-center justify-center text-xl mb-5">🔒</div>
+                <h3 class="text-white font-semibold text-base mb-2">Aman & Private</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Data keuangan terenkripsi. 2FA via Telegram. Hanya kamu yang bisa akses.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{{-- How it Works --}}
+<section id="how-it-works" class="py-20 md:py-28 relative">
+    <div class="absolute inset-0 bg-gradient-to-b from-transparent via-blue-950/5 to-transparent"></div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div class="text-center mb-14">
+            <p class="text-purple-400 text-sm font-semibold uppercase tracking-wide mb-3">Cara Kerja</p>
+            <h2 class="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">Mulai dalam 3 Langkah</h2>
+            <p class="text-slate-400 text-base">Tidak perlu setup rumit. Langsung pakai.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div class="text-center p-6">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-2xl font-bold mx-auto mb-5 shadow-lg shadow-blue-500/30">1</div>
+                <h3 class="text-white font-semibold text-lg mb-2">Daftar Gratis</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Buat akun dalam 30 detik. Verifikasi email, selesai.</p>
+            </div>
+            <div class="text-center p-6">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold mx-auto mb-5 shadow-lg shadow-purple-500/30">2</div>
+                <h3 class="text-white font-semibold text-lg mb-2">Hubungkan Telegram</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Kirim <code class="text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded text-xs">/link email@kamu.com</code> ke bot.</p>
+            </div>
+            <div class="text-center p-6">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-2xl font-bold mx-auto mb-5 shadow-lg shadow-emerald-500/30">3</div>
+                <h3 class="text-white font-semibold text-lg mb-2">Langsung Pakai!</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">Ketik transaksi, foto struk, atau kirim voice note. Done.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{{-- Testimonials --}}
+<section id="testimonials" class="py-20 md:py-28">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-14">
+            <p class="text-emerald-400 text-sm font-semibold uppercase tracking-wide mb-3">Testimoni</p>
+            <h2 class="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">Yang Mereka Bilang</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto">
+            <div class="testimonial-card rounded-2xl p-6">
+                <div class="flex items-center gap-1 mb-4">
+                    <span class="text-amber-400 text-sm">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+                </div>
+                <p class="text-slate-300 text-sm leading-relaxed mb-5">"Dulu males banget catat pengeluaran. Sekarang tinggal chat ke bot, done. Akhirnya tau uang habis kemana."</p>
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">R</div>
+                    <div>
+                        <p class="text-white text-sm font-medium">Rina</p>
+                        <p class="text-slate-500 text-xs">Freelancer</p>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial-card rounded-2xl p-6">
+                <div class="flex items-center gap-1 mb-4">
+                    <span class="text-amber-400 text-sm">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+                </div>
+                <p class="text-slate-300 text-sm leading-relaxed mb-5">"Fitur scan struk ini gila sih. Foto nota langsung masuk semua itemnya. Hemat waktu banget."</p>
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">A</div>
+                    <div>
+                        <p class="text-white text-sm font-medium">Andi</p>
+                        <p class="text-slate-500 text-xs">Karyawan Swasta</p>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial-card rounded-2xl p-6">
+                <div class="flex items-center gap-1 mb-4">
+                    <span class="text-amber-400 text-sm">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+                </div>
+                <p class="text-slate-300 text-sm leading-relaxed mb-5">"Voice note-nya keren. Lagi nyetir tinggal rekam 'bayar tol 15rb' udah langsung kecatat. Mantap."</p>
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center text-white text-xs font-bold">D</div>
+                    <div>
+                        <p class="text-white text-sm font-medium">Dimas</p>
+                        <p class="text-slate-500 text-xs">Mahasiswa</p>
                     </div>
                 </div>
             </div>
@@ -95,238 +233,21 @@
     </div>
 </section>
 
-
-{{-- Features Section --}}
-<section id="features" class="py-20 md:py-32">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16">
-            <h2 class="text-3xl md:text-5xl font-bold text-white mb-4">Semua yang Kamu Butuhkan</h2>
-            <p class="text-slate-400 text-lg max-w-2xl mx-auto">Fitur lengkap untuk mengelola keuangan pribadi dengan bantuan AI</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {{-- Feature 1 --}}
-            <div class="feature-card rounded-2xl p-6">
-                <div class="w-12 h-12 rounded-xl bg-blue-500/15 flex items-center justify-center text-2xl mb-4">💬</div>
-                <h3 class="text-white font-semibold text-lg mb-2">Input via Telegram</h3>
-                <p class="text-slate-400 text-sm leading-relaxed">Ketik "beli makan 35rb cash" dan transaksi otomatis tercatat. Tidak perlu buka app.</p>
-            </div>
-
-            {{-- Feature 2 --}}
-            <div class="feature-card rounded-2xl p-6">
-                <div class="w-12 h-12 rounded-xl bg-purple-500/15 flex items-center justify-center text-2xl mb-4">📸</div>
-                <h3 class="text-white font-semibold text-lg mb-2">Scan Struk Otomatis</h3>
-                <p class="text-slate-400 text-sm leading-relaxed">Foto struk belanja, AI akan membaca dan mencatat semua item secara otomatis.</p>
-            </div>
-
-            {{-- Feature 3 --}}
-            <div class="feature-card rounded-2xl p-6">
-                <div class="w-12 h-12 rounded-xl bg-green-500/15 flex items-center justify-center text-2xl mb-4">🎤</div>
-                <h3 class="text-white font-semibold text-lg mb-2">Voice Note</h3>
-                <p class="text-slate-400 text-sm leading-relaxed">Rekam ucapan "gaji masuk 5 juta BCA" dan transaksi langsung tercatat.</p>
-            </div>
-
-            {{-- Feature 4 --}}
-            <div class="feature-card rounded-2xl p-6">
-                <div class="w-12 h-12 rounded-xl bg-yellow-500/15 flex items-center justify-center text-2xl mb-4">📊</div>
-                <h3 class="text-white font-semibold text-lg mb-2">Laporan & Insight AI</h3>
-                <p class="text-slate-400 text-sm leading-relaxed">Dapatkan rekapan bulanan, analisis pengeluaran, dan saran cerdas dari AI.</p>
-            </div>
-
-            {{-- Feature 5 --}}
-            <div class="feature-card rounded-2xl p-6">
-                <div class="w-12 h-12 rounded-xl bg-red-500/15 flex items-center justify-center text-2xl mb-4">🎯</div>
-                <h3 class="text-white font-semibold text-lg mb-2">Budget & Goals</h3>
-                <p class="text-slate-400 text-sm leading-relaxed">Atur budget per kategori dan target tabungan. Alert otomatis saat mendekati limit.</p>
-            </div>
-
-            {{-- Feature 6 --}}
-            <div class="feature-card rounded-2xl p-6">
-                <div class="w-12 h-12 rounded-xl bg-cyan-500/15 flex items-center justify-center text-2xl mb-4">🔄</div>
-                <h3 class="text-white font-semibold text-lg mb-2">Transaksi Berulang</h3>
-                <p class="text-slate-400 text-sm leading-relaxed">Cicilan, langganan, dan tagihan rutin otomatis tercatat setiap bulan.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-{{-- How it Works --}}
-<section id="how-it-works" class="py-20 md:py-32">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16">
-            <h2 class="text-3xl md:text-5xl font-bold text-white mb-4">Cara Kerja</h2>
-            <p class="text-slate-400 text-lg">3 langkah mudah untuk mulai mengelola keuangan</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div class="text-center">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-500/5 border border-blue-500/20 flex items-center justify-center text-3xl mx-auto mb-5">1</div>
-                <h3 class="text-white font-semibold text-lg mb-2">Daftar & Hubungkan</h3>
-                <p class="text-slate-400 text-sm">Buat akun gratis, lalu hubungkan Telegram dengan perintah /link</p>
-            </div>
-            <div class="text-center">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-purple-500/5 border border-purple-500/20 flex items-center justify-center text-3xl mx-auto mb-5">2</div>
-                <h3 class="text-white font-semibold text-lg mb-2">Kirim Transaksi</h3>
-                <p class="text-slate-400 text-sm">Ketik, foto struk, atau voice note di Telegram. AI yang catat.</p>
-            </div>
-            <div class="text-center">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500/20 to-green-500/5 border border-green-500/20 flex items-center justify-center text-3xl mx-auto mb-5">3</div>
-                <h3 class="text-white font-semibold text-lg mb-2">Lihat Insight</h3>
-                <p class="text-slate-400 text-sm">Dashboard lengkap + AI insight otomatis setiap minggu via Telegram.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-
-{{-- Pricing Section --}}
-<section id="pricing" class="py-20 md:py-32">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16">
-            <h2 class="text-3xl md:text-5xl font-bold text-white mb-4">Pilih Paket Kamu</h2>
-            <p class="text-slate-400 text-lg">Mulai gratis, upgrade kapan saja</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {{-- Free Plan --}}
-            <div class="pricing-card rounded-2xl p-8">
-                <div class="mb-6">
-                    <h3 class="text-white font-semibold text-lg">Free</h3>
-                    <p class="text-slate-400 text-sm mt-1">Untuk mulai mencoba</p>
-                </div>
-                <div class="mb-6">
-                    <span class="text-4xl font-bold text-white">Rp0</span>
-                    <span class="text-slate-500 text-sm">/bulan</span>
-                </div>
-                <ul class="space-y-3 mb-8">
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        50 transaksi/bulan
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        2 wallet
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Input via Telegram
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        5 scan struk/bulan
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-500">
-                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        Voice note
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-500">
-                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        Export PDF/Excel
-                    </li>
-                </ul>
-                <a href="{{ route('register') }}" class="block w-full text-center py-3 rounded-xl border border-slate-700 text-slate-300 font-semibold hover:border-slate-500 hover:text-white transition-all">
-                    Mulai Gratis
-                </a>
-            </div>
-
-            {{-- Pro Plan --}}
-            <div class="pricing-card popular rounded-2xl p-8 relative">
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold">
-                    POPULER
-                </div>
-                <div class="mb-6">
-                    <h3 class="text-white font-semibold text-lg">Premium</h3>
-                    <p class="text-slate-400 text-sm mt-1">Untuk penggunaan penuh</p>
-                </div>
-                <div class="mb-6">
-                    <span class="text-4xl font-bold text-white">Rp39rb</span>
-                    <span class="text-slate-500 text-sm">/bulan</span>
-                </div>
-                <ul class="space-y-3 mb-8">
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Transaksi unlimited
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Wallet unlimited
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Scan struk unlimited
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Voice note unlimited
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        AI insight & chat unlimited
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Export PDF & Excel
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Weekly AI summary
-                    </li>
-                </ul>
-                <a href="{{ route('register') }}" class="block w-full text-center py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg shadow-blue-500/25">
-                    Mulai 7 Hari Trial
-                </a>
-            </div>
-
-            {{-- Lifetime Plan --}}
-            <div class="pricing-card rounded-2xl p-8">
-                <div class="mb-6">
-                    <h3 class="text-white font-semibold text-lg">Lifetime</h3>
-                    <p class="text-slate-400 text-sm mt-1">Bayar sekali, selamanya</p>
-                </div>
-                <div class="mb-6">
-                    <span class="text-4xl font-bold text-white">Rp599rb</span>
-                    <span class="text-slate-500 text-sm">sekali bayar</span>
-                </div>
-                <ul class="space-y-3 mb-8">
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Semua fitur Premium
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Akses selamanya
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Update fitur gratis
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Priority support
-                    </li>
-                    <li class="flex items-center gap-2 text-sm text-slate-300">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Early access fitur baru
-                    </li>
-                </ul>
-                <a href="{{ route('register') }}" class="block w-full text-center py-3 rounded-xl border border-slate-700 text-slate-300 font-semibold hover:border-slate-500 hover:text-white transition-all">
-                    Beli Lifetime
-                </a>
-            </div>
-        </div>
-    </div>
-</section>
-
 {{-- CTA Section --}}
 <section class="py-20">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div class="glass-hero rounded-3xl p-10 md:p-16">
-            <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Siap Kelola Keuangan Lebih Cerdas?</h2>
-            <p class="text-slate-400 text-lg mb-8 max-w-xl mx-auto">Daftar sekarang dan mulai catat keuangan hanya lewat chat Telegram.</p>
-            <a href="{{ route('register') }}" class="inline-flex items-center px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold text-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-xl shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105">
-                Daftar Gratis Sekarang
-                <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-            </a>
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="glass-card-landing rounded-3xl p-10 md:p-14 text-center glow-purple relative overflow-hidden">
+            <div class="absolute -top-20 -right-20 w-60 h-60 bg-purple-500/10 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-20 -left-20 w-60 h-60 bg-blue-500/10 rounded-full blur-3xl"></div>
+            <div class="relative">
+                <h2 class="text-2xl md:text-4xl font-extrabold text-white mb-4 tracking-tight">Siap Mulai?</h2>
+                <p class="text-slate-400 text-base mb-8 max-w-md mx-auto">Daftar gratis, hubungkan Telegram, dan mulai catat keuangan tanpa ribet.</p>
+                <a href="{{ route('register') }}" class="group inline-flex items-center px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold text-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-xl shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.03]">
+                    Daftar Gratis
+                    <svg class="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                </a>
+                <p class="text-slate-500 text-xs mt-5">Tidak perlu kartu kredit. Setup dalam 30 detik.</p>
+            </div>
         </div>
     </div>
 </section>
