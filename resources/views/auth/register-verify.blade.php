@@ -29,6 +29,7 @@
 
 <form method="POST" action="{{ route('register.verify.submit') }}" class="space-y-5" x-data="otpInput()" @submit="updateHidden()">
     @csrf
+    <input type="hidden" name="pending_id" value="{{ $pendingId }}">
 
     {{-- OTP Input: 6 kotak terpisah --}}
     <div>
@@ -59,6 +60,7 @@
 <div class="mt-5 text-center space-y-3">
     <form method="POST" action="{{ route('register.verify.resend') }}">
         @csrf
+        <input type="hidden" name="pending_id" value="{{ $pendingId }}">
         <button type="submit" class="text-sm text-primary-400 hover:text-primary-300">
             Tidak menerima kode? Kirim ulang
         </button>

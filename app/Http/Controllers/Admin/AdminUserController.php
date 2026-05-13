@@ -47,4 +47,44 @@ class AdminUserController extends Controller
         $user->update(['password' => Hash::make($request->password)]);
         return back()->with('success', 'Password direset!');
     }
+
+    public function destroy(User $user)
+    {
+        // Jangan izinkan hapus diri sendiri
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'Tidak bisa menghapus akun Anda sendiri!');
+        }
+
+        // Soft delete user
+        $user->delete();
+        return back()->with('success', "User {$user->name} berhasil dihapus!");
+    }
+
+    public function restore($id)
+    {
+        $user = User::withTrashed()->findOrFail($id);
+        $user->restore();
+        return back()->with('success', "User {$user->name} berhasil dipulihkan!");
+    }
+
+    public function forceDelete($id)
+    {
+        $user = User::withTrashed()->findOrFail($id);
+
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'Tidak bisa menghapus akun Anda sendiri!');
+        }
+
+        // Hapus permanen beserta relasi
+        $user->wallets()->delete();
+        $user->transactions()->delete();
+        $user->categories()->delete();
+        $user->budgets()->delete();
+        $user->goals()->delete();
+        $user->recurringTransactions()->delete();
+        $user->debts()->delete();
+        $user->forceDelete();
+
+        return back()->with('success', "User {$user->name} dihapus permanen!");
+    }
 }

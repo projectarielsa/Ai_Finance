@@ -121,6 +121,9 @@ Route::middleware(['auth', 'two_factor', 'admin'])->prefix('admin')->name('admin
     Route::post('users/{user}/toggle-active',    [AdminUserController::class, 'toggleActive'])->name('users.toggle-active');
     Route::post('users/{user}/toggle-role',      [AdminUserController::class, 'toggleRole'])->name('users.toggle-role');
     Route::post('users/{user}/reset-password',   [AdminUserController::class, 'resetPassword'])->name('users.reset-password');
+    Route::delete('users/{user}',                [AdminUserController::class, 'destroy'])->name('users.destroy');
+    Route::post('users/{user}/restore',          [AdminUserController::class, 'restore'])->name('users.restore');
+    Route::delete('users/{user}/force-delete',   [AdminUserController::class, 'forceDelete'])->name('users.force-delete');
 
     // API Credentials
     Route::resource('api-credentials', ApiCredentialController::class)->except(['show']);

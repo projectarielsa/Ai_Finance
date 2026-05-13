@@ -55,15 +55,15 @@ class RegisterController extends Controller
         // Simpan ID ke session untuk verifikasi
         session(['pending_registration_id' => $pending->id]);
 
-        return redirect()->route('register.verify');
+        return redirect()->route('register.verify', ['ref' => $pending->id]);
     }
 
     /**
      * Tampilkan halaman input OTP.
      */
-    public function showVerifyForm()
+    public function showVerifyForm(Request $request)
     {
-        $pendingId = session('pending_registration_id');
+        $pendingId = session('pending_registration_id') ?? $request->query('ref');
         if (!$pendingId) {
             return redirect()->route('register')->with('error', 'Silakan daftar terlebih dahulu.');
         }
@@ -74,8 +74,12 @@ class RegisterController extends Controller
             return redirect()->route('register')->with('error', 'Data pendaftaran tidak ditemukan. Silakan daftar ulang.');
         }
 
+        // Re-set session in case it was lost
+        session(['pending_registration_id' => $pending->id]);
+
         return view('auth.register-verify', [
-            'email' => $pending->email,
+            'email'     => $pending->email,
+            'pendingId' => $pending->id,
         ]);
     }
 
@@ -88,9 +92,9 @@ class RegisterController extends Controller
             'code' => 'required|string|size:6',
         ]);
 
-        $pendingId = session('pending_registration_id');
+        $pendingId = session('pending_registration_id') ?? $request->input('pending_id');
         if (!$pendingId) {
-            return redirect()->route('register');
+            return redirect()->route('register')->with('error', 'Session kedaluwarsa. Silakan daftar ulang.');
         }
 
         $pending = PendingRegistration::find($pendingId);
@@ -148,9 +152,9 @@ class RegisterController extends Controller
      */
     public function resendOtp(Request $request)
     {
-        $pendingId = session('pending_registration_id');
+        $pendingId = session('pending_registration_id') ?? $request->input('pending_id');
         if (!$pendingId) {
-            return redirect()->route('register');
+            return redirect()->route('register')->with('error', 'Session kedaluwarsa. Silakan daftar ulang.');
         }
 
         $pending = PendingRegistration::find($pendingId);
