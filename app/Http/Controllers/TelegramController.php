@@ -49,7 +49,13 @@ class TelegramController extends Controller
      */
     public function setupWebhook(Request $request)
     {
-        $url    = route('webhook.telegram');
+        $url = route('webhook.telegram');
+
+        // Telegram requires HTTPS — force it regardless of APP_URL config
+        if (str_starts_with($url, 'http://')) {
+            $url = 'https://' . substr($url, 7);
+        }
+
         $secret = config('services.telegram.webhook_secret');
         $result = $this->telegram->setWebhook($url, $secret ?: null);
 
