@@ -42,6 +42,23 @@
                                 @csrf
                                 <button type="submit" class="btn-icon p-1.5 text-xs" title="Toggle Role">{{ $u->role==='admin'?'👤':'👑' }}</button>
                             </form>
+                            @if($u->trashed())
+                                <form action="{{ route('admin.users.restore',$u->id) }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="btn-icon p-1.5 text-xs" title="Pulihkan User">♻️</button>
+                                </form>
+                                <form action="{{ route('admin.users.force-delete',$u->id) }}" method="POST" onsubmit="return confirm('HAPUS PERMANEN user {{ $u->name }}? Semua data akan hilang dan tidak bisa dikembalikan!')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn-icon p-1.5 text-xs text-red-400" title="Hapus Permanen">💀</button>
+                                </form>
+                            @elseif($u->id !== auth()->id())
+                                <form action="{{ route('admin.users.destroy',$u) }}" method="POST" onsubmit="return confirm('Hapus user {{ $u->name }}?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn-icon p-1.5 text-xs text-red-400" title="Hapus User">🗑️</button>
+                                </form>
+                            @endif
                         </div>
                     </td>
                 </tr>
