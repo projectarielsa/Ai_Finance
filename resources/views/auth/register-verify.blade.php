@@ -27,13 +27,13 @@
 </div>
 @endif
 
-<form method="POST" action="{{ route('register.verify.submit') }}" class="space-y-5" x-data>
+<form method="POST" action="{{ route('register.verify.submit') }}" class="space-y-5" x-data="otpInput()" @submit="updateHidden()">
     @csrf
 
     {{-- OTP Input: 6 kotak terpisah --}}
     <div>
         <label class="input-label text-center block mb-3">Masukkan kode OTP</label>
-        <div class="flex gap-2 justify-center" x-data="otpInput()">
+        <div class="flex gap-2 justify-center">
             @for($i = 0; $i < 6; $i++)
             <input
                 type="text"
@@ -46,9 +46,9 @@
                 class="w-11 h-14 text-center text-xl font-bold rounded-xl bg-dark-800 border border-dark-600/50 text-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none transition-colors"
             >
             @endfor
-            {{-- Hidden input untuk submit --}}
-            <input type="hidden" name="code" x-ref="codeInput">
         </div>
+        {{-- Hidden input untuk submit --}}
+        <input type="hidden" name="code" x-ref="codeInput">
     </div>
 
     <button type="submit" class="btn-primary w-full justify-center py-3">
