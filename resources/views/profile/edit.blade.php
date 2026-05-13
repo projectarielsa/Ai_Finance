@@ -240,7 +240,6 @@
         </div>
     </div>
     @endif
-</div>
 
     {{-- ── 2FA SECTION ──────────────────────────────── --}}
     <div class="glass-card p-6">
