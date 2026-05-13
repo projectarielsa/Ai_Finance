@@ -53,8 +53,8 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // Chart data (last 6 months)
-        $chartData = $this->getChartData($user, 6);
+        // Chart data (current month - daily)
+        $chartData = $this->getMonthlyChartData($user, $year, $month);
 
         // AI insight — pakai Carbon untuk hitung bulan lalu agar Januari tidak jadi bulan 0
         $prevMonth        = now()->subMonth();
@@ -99,6 +99,37 @@ class DashboardController extends Controller
         $user   = Auth::user();
         $months = (int)$request->input('months', 6);
         return response()->json($this->getChartData($user, $months));
+    }
+
+    protected function getMonthlyChartData($user, int $year, int $month): array
+    {
+        $startDate = \Carbon\Carbon::createFromDate($year, $month, 1)->startOfDay();
+        $endDate   = $startDate->copy()->endOfMonth();
+        $today     = now()->day;
+        $daysInMonth = $startDate->daysInMonth;
+
+        // Query daily totals for current month
+        $rows = $user->transactions()
+            ->completed()
+            ->whereIn('type', ['income', 'expense'])
+            ->whereBetween('transaction_date', [$startDate, $endDate])
+            ->selectRaw('DAY(transaction_date) as d, type, SUM(amount) as total')
+            ->groupBy('d', 'type')
+            ->get()
+            ->groupBy('d');
+
+        $labels  = [];
+        $income  = [];
+        $expense = [];
+
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $labels[]  = $day;
+            $group     = $rows->get($day, collect());
+            $income[]  = (float) ($group->firstWhere('type', 'income')?->total ?? 0);
+            $expense[] = (float) ($group->firstWhere('type', 'expense')?->total ?? 0);
+        }
+
+        return compact('labels', 'income', 'expense');
     }
 
     protected function getChartData($user, int $months): array
