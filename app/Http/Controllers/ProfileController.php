@@ -65,4 +65,54 @@ class ProfileController extends Controller
         $user->update(['password' => Hash::make($request->password)]);
         return back()->with('success', 'Password berhasil diubah!');
     }
+
+    // ── 2FA Management ────────────────────────────────────────────────────────
+
+    public function enableTwoFactor(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user->telegram_id) {
+            return back()->with('error', '❌ Hubungkan akun Telegram dulu sebelum mengaktifkan 2FA. Buka bot dan ketik /link email@kamu.com');
+        }
+
+        $user->update(['two_factor_enabled' => true]);
+
+        // Kirim notif ke Telegram
+        app(\App\Services\TelegramBotService::class)->sendMessage(
+            $user->telegram_id,
+            "🔐 *Two-Factor Authentication Aktif*\n\n" .
+            "Mulai sekarang, setiap login ke Finance AI akan membutuhkan kode OTP yang dikirim ke Telegram ini.\n\n" .
+            "_Jika bukan kamu yang mengaktifkan ini, segera ubah password!_"
+        );
+
+        return back()->with('success', '✅ Verifikasi dua langkah berhasil diaktifkan!');
+    }
+
+    public function disableTwoFactor(Request $request)
+    {
+        $request->validate(['password' => 'required']);
+        $user = Auth::user();
+
+        if (!Hash::check($request->password, $user->password)) {
+            return back()->with('error', 'Password tidak benar.');
+        }
+
+        $user->update([
+            'two_factor_enabled'    => false,
+            'two_factor_code'       => null,
+            'two_factor_expires_at' => null,
+        ]);
+
+        if ($user->telegram_id) {
+            app(\App\Services\TelegramBotService::class)->sendMessage(
+                $user->telegram_id,
+                "⚠️ *Two-Factor Authentication Dinonaktifkan*\n\n" .
+                "Login ke Finance AI sekarang hanya membutuhkan email & password.\n\n" .
+                "_Jika bukan kamu yang melakukan ini, segera ubah password!_"
+            );
+        }
+
+        return back()->with('success', 'Verifikasi dua langkah berhasil dinonaktifkan.');
+    }
 }

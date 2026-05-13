@@ -18,6 +18,7 @@ use App\Http\Controllers\RecurringTransactionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\WalletController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,13 @@ Route::middleware('guest')->group(function () {
 
 Route::post('logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
 
+// ─── 2FA Verification (auth tapi belum 2FA-passed) ────────────────────────────
+Route::middleware('auth')->group(function () {
+    Route::get('two-factor',        [TwoFactorController::class, 'showVerifyForm'])->name('two-factor.verify');
+    Route::post('two-factor',       [TwoFactorController::class, 'verify'])->middleware('throttle:10,1')->name('two-factor.verify.submit');
+    Route::post('two-factor/resend',[TwoFactorController::class, 'resend'])->middleware('throttle:3,1')->name('two-factor.resend');
+});
+
 // ─── Telegram Webhook (public, no auth) ──────────────────────────────────────
 Route::post('webhook/telegram',             [TelegramController::class, 'webhook'])->name('webhook.telegram');
 Route::get('telegram/setup-webhook',        [TelegramController::class, 'setupWebhook'])->name('telegram.setup-webhook')->middleware('auth');
@@ -43,7 +51,7 @@ Route::get('telegram/webhook-info',         [TelegramController::class, 'webhook
 Route::get('telegram/test',                 [TelegramController::class, 'testConnection'])->name('telegram.test')->middleware('auth');
 
 // ─── Authenticated Routes ─────────────────────────────────────────────────────
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'two_factor'])->group(function () {
 
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -53,6 +61,8 @@ Route::middleware('auth')->group(function () {
     Route::get('profile',                   [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('profile',                   [ProfileController::class, 'update'])->name('profile.update');
     Route::put('profile/password',          [ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::post('profile/two-factor/enable',  [ProfileController::class, 'enableTwoFactor'])->name('profile.2fa.enable');
+    Route::post('profile/two-factor/disable', [ProfileController::class, 'disableTwoFactor'])->name('profile.2fa.disable');
 
     // Wallets
     Route::resource('wallets', WalletController::class);
@@ -99,7 +109,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // ─── Admin Routes ─────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'two_factor', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
 
     // Users
