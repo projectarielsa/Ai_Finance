@@ -53,11 +53,19 @@ Route::get('telegram/delete-webhook',       [TelegramController::class, 'deleteW
 Route::get('telegram/webhook-info',         [TelegramController::class, 'webhookInfo'])->name('telegram.webhook-info')->middleware('auth');
 Route::get('telegram/test',                 [TelegramController::class, 'testConnection'])->name('telegram.test')->middleware('auth');
 
+// ─── Landing Page (public) ────────────────────────────────────────────────────
+Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+    return view('welcome');
+})->name('home');
+
 // ─── Authenticated Routes ─────────────────────────────────────────────────────
 Route::middleware(['auth', 'two_factor'])->group(function () {
 
     // Dashboard
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('dashboard/chart-data', [DashboardController::class, 'getChartDataApi'])->name('dashboard.chart-data');
 
     // Profile
