@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Models\Budget;
+use App\Models\Debt;
 use App\Models\Goal;
 use App\Services\GrokAIService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -75,10 +77,19 @@ class DashboardController extends Controller
             ->take(3)
             ->get();
 
+        // Debt summary for widget
+        $debtSummary = [
+            'total_receivable'  => Debt::where('user_id', $user->id)->active()->receivable()->sum(\Illuminate\Support\Facades\DB::raw('amount - paid_amount')),
+            'total_payable'     => Debt::where('user_id', $user->id)->active()->payable()->sum(\Illuminate\Support\Facades\DB::raw('amount - paid_amount')),
+            'receivable_count'  => Debt::where('user_id', $user->id)->active()->receivable()->count(),
+            'payable_count'     => Debt::where('user_id', $user->id)->active()->payable()->count(),
+            'overdue'           => Debt::where('user_id', $user->id)->overdue()->count(),
+        ];
+
         return view('dashboard.index', compact(
             'wallets', 'totalBalance', 'monthlyIncome', 'monthlyExpense',
             'monthlyTransfer', 'netCashflow', 'recentTransactions',
-            'topCategories', 'chartData', 'aiInsight', 'budgets', 'goals'
+            'topCategories', 'chartData', 'aiInsight', 'budgets', 'goals', 'debtSummary'
         ));
     }
 

@@ -430,6 +430,14 @@ class TelegramWebhookService
             }
         }
 
+        // ── Hutang / Piutang ──────────────────────────────────────────────
+        $debtKeywords = ['hutang', 'piutang', 'utang', 'cek hutang', 'cek piutang', 'lihat hutang', 'lihat piutang'];
+        foreach ($debtKeywords as $kw) {
+            if ($lower === $kw || str_contains($lower, $kw)) {
+                return null; // biarkan command handler /hutang yang handle, atau fallback ke AI
+            }
+        }
+
         return null; // tidak ada yang cocok → lanjut ke flow berikutnya
     }
 
@@ -681,6 +689,11 @@ class TelegramWebhookService
                 $this->telegram->sendMessage($chatId, implode("\n", $lines));
                 break;
 
+            case '/hutang':
+            case '/piutang':
+            case '/utang':
+                $this->sendDebtSummary($user, $chatId);
+                break;
             case '/wallet':
                 $wallets = $user->wallets()->where('is_active', true)->get();
                 $lines   = ["💳 *Daftar Wallet:*"];
@@ -703,6 +716,7 @@ class TelegramWebhookService
                 $help .= "/rekap — Rekapan lengkap bulan ini\n";
                 $help .= "/rekap 4 2026 — Rekap bulan April 2026\n";
                 $help .= "/topkategori — Top pengeluaran\n";
+                $help .= "/hutang — Cek hutang & piutang\n";
                 $help .= "/wallet — Daftar wallet\n";
                 $help .= "/link email — Hubungkan/ganti akun\n";
                 $help .= "/unlink — Putuskan akun dari bot\n";
@@ -1046,7 +1060,76 @@ class TelegramWebhookService
             'wallets'                        => $user->wallets()->where('is_active', true)->get(['name', 'balance', 'type'])
                                                      ->map(fn($w) => ['nama' => $w->name, 'saldo' => (float)$w->balance, 'tipe' => $w->type])
                                                      ->toArray(),
+            'hutang_piutang_aktif'           => $this->buildDebtContext($user),
         ];
     }
 
-}
+    protected function buildDebtContext(User $user): array
+    {
+        $debts = \App\Models\Debt::where('user_id', $user->id)->active()->with('wallet')->get();
+        if ($debts->isEmpty()) return ['total_piutang' => 0, 'total_hutang' => 0, 'items' => []];
+
+        return [
+            'total_piutang' => (float) $debts->where('type', 'receivable')->sum('remaining_amount'),
+            'total_hutang'  => (float) $debts->where('type', 'payable')->sum('remaining_amount'),
+            'items' => $debts->map(fn($d) => [
+                'tipe'    => $d->type === 'receivable' ? 'piutang' : 'hutang',
+                'nama'    => $d->contact_name,
+                'total'   => (float)$d->amount,
+                'sisa'    => (float)$d->remaining_amount,
+                'status'  => $d->status,
+                'jatuh_tempo' => $d->due_date?->format('d M Y'),
+            ])->toArray(),
+        ];
+    }
+
+    /** Tampilkan ringkasan hutang/piutang via Telegram */
+    protected function sendDebtSummary(User $user, int|string $chatId): void
+    {
+        $debts = \App\Models\Debt::where('user_id', $user->id)->active()->orderBy('due_date')->get();
+
+        if ($debts->isEmpty()) {
+            $this->telegram->sendMessage($chatId,
+                "✅ *Hutang & Piutang*\n\nTidak ada hutang atau piutang aktif saat ini! 🎉\n\n" .
+                "_Catat hutang/piutang baru di: " . config('app.url') . "/debts_"
+            );
+            return;
+        }
+
+        $receivables = $debts->where('type', 'receivable');
+        $payables    = $debts->where('type', 'payable');
+        $totalR = $receivables->sum('remaining_amount');
+        $totalP = $payables->sum('remaining_amount');
+
+        $msg = "🤝 *HUTANG & PIUTANG AKTIF*\n\n";
+
+        if ($receivables->isNotEmpty()) {
+            $msg .= "💰 *Piutang (orang hutang ke kamu):*\n";
+            foreach ($receivables as $d) {
+                $sisa  = 'Rp' . number_format($d->remaining_amount, 0, ',', '.');
+                $due   = $d->due_date ? ' · jatuh tempo ' . $d->due_date->format('d M Y') : '';
+                $over  = $d->is_overdue ? ' ⚠️' : '';
+                $msg  .= "• *{$d->contact_name}*: {$sisa}{$due}{$over}\n";
+            }
+            $msg .= "_Total piutang: Rp" . number_format($totalR, 0, ',', '.') . "_\n\n";
+        }
+
+        if ($payables->isNotEmpty()) {
+            $msg .= "💸 *Hutang (kamu hutang ke orang):*\n";
+            foreach ($payables as $d) {
+                $sisa  = 'Rp' . number_format($d->remaining_amount, 0, ',', '.');
+                $due   = $d->due_date ? ' · jatuh tempo ' . $d->due_date->format('d M Y') : '';
+                $over  = $d->is_overdue ? ' ⚠️' : '';
+                $msg  .= "• *{$d->contact_name}*: {$sisa}{$due}{$over}\n";
+            }
+            $msg .= "_Total hutang: Rp" . number_format($totalP, 0, ',', '.') . "_\n\n";
+        }
+
+        $overdue = $debts->filter(fn($d) => $d->is_overdue)->count();
+        if ($overdue > 0) {
+            $msg .= "⚠️ *{$overdue} item sudah melewati jatuh tempo!*\n\n";
+        }
+
+        $msg .= "_Kelola semua di: " . config('app.url') . "/debts_";
+        $this->telegram->sendMessage($chatId, $msg);
+    }

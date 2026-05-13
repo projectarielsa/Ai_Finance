@@ -196,7 +196,48 @@
     @if($budgets->count() || $goals->count())
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-        {{-- Budget Overview --}}
+        {{-- Hutang Piutang Widget --}}
+        @if($debtSummary['total_receivable'] > 0 || $debtSummary['total_payable'] > 0 || $debtSummary['overdue'] > 0)
+        <div class="glass-card p-6 {{ $debtSummary['overdue'] > 0 ? 'ring-1 ring-yellow-500/30' : '' }}">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-white font-semibold">Hutang & Piutang</h3>
+                <a href="{{ route('debts.index') }}" class="text-primary-400 text-xs hover:text-primary-300">Kelola →</a>
+            </div>
+            <div class="space-y-3">
+                @if($debtSummary['total_receivable'] > 0)
+                <div class="flex items-center justify-between p-3 rounded-xl bg-green-500/8 border border-green-500/15">
+                    <div class="flex items-center gap-2">
+                        <span class="text-green-400 text-lg">💰</span>
+                        <div>
+                            <p class="text-sm font-medium text-white">Piutang Aktif</p>
+                            <p class="text-xs text-dark-400">{{ $debtSummary['receivable_count'] }} orang masih berhutang ke Anda</p>
+                        </div>
+                    </div>
+                    <span class="text-green-400 font-bold">Rp {{ number_format($debtSummary['total_receivable'],0,',','.') }}</span>
+                </div>
+                @endif
+                @if($debtSummary['total_payable'] > 0)
+                <div class="flex items-center justify-between p-3 rounded-xl bg-red-500/8 border border-red-500/15">
+                    <div class="flex items-center gap-2">
+                        <span class="text-red-400 text-lg">💸</span>
+                        <div>
+                            <p class="text-sm font-medium text-white">Hutang Aktif</p>
+                            <p class="text-xs text-dark-400">{{ $debtSummary['payable_count'] }} hutang masih harus Anda bayar</p>
+                        </div>
+                    </div>
+                    <span class="text-red-400 font-bold">Rp {{ number_format($debtSummary['total_payable'],0,',','.') }}</span>
+                </div>
+                @endif
+                @if($debtSummary['overdue'] > 0)
+                <div class="flex items-center gap-2 p-3 rounded-xl bg-yellow-500/8 border border-yellow-500/20">
+                    <span class="text-yellow-400">⚠️</span>
+                    <span class="text-yellow-400 text-sm font-medium">{{ $debtSummary['overdue'] }} item sudah melewati jatuh tempo!</span>
+                    <a href="{{ route('debts.index') }}" class="ml-auto text-xs text-yellow-400 hover:text-yellow-300 underline">Cek →</a>
+                </div>
+                @endif
+            </div>
+        </div>
+        @endif        {{-- Budget Overview --}}
         @if($budgets->count())
         <div class="glass-card p-6">
             <div class="flex items-center justify-between mb-4">

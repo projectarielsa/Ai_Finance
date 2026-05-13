@@ -78,6 +78,11 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\RecurringTransaction::class);
     }
 
+    public function debts()
+    {
+        return $this->hasMany(\App\Models\Debt::class);
+    }
+
     public function hasTelegram(): bool
     {
         return !empty($this->telegram_id);

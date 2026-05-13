@@ -6,6 +6,18 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Dashboard') — {{ config('app.name', 'Finance AI') }}</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+
+    {{-- PWA Meta Tags --}}
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Finance AI">
+    <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+    <meta name="msapplication-TileImage" content="/icons/icon-144.svg">
+    <meta name="msapplication-TileColor" content="#3b82f6">
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
 </head>
@@ -82,6 +94,11 @@
                 <span>Transaksi Berulang</span>
             </a>
 
+            <a href="{{ route('debts.index') }}" class="sidebar-link {{ request()->routeIs('debts.*') ? 'active' : '' }}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 8.25H9m6 3H9m3 6-3-3h1.5a3 3 0 100-6M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>Hutang & Piutang</span>
+            </a>
+
             <a href="{{ route('categories.index') }}" class="sidebar-link {{ request()->routeIs('categories.*') ? 'active' : '' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
                 <span>Kategori</span>
@@ -115,6 +132,29 @@
     {{-- Sidebar overlay (mobile) --}}
     <div class="fixed inset-0 z-40 bg-black/60 lg:hidden" x-show="sidebarOpen" @click="sidebarOpen=false" x-transition:enter="transition-opacity ease-linear duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity ease-linear duration-300" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
 
+{{-- PWA Install Banner --}}
+<div id="pwa-install-banner"
+     class="hidden fixed bottom-0 left-0 right-0 z-50 p-4 lg:bottom-6 lg:left-auto lg:right-6 lg:max-w-sm">
+    <div class="bg-dark-800 border border-primary-500/30 rounded-2xl p-4 shadow-2xl shadow-black/50 backdrop-blur-xl">
+        <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-xl flex-shrink-0">💰</div>
+            <div class="flex-1 min-w-0">
+                <p class="text-white font-semibold text-sm">Pasang Finance AI</p>
+                <p class="text-dark-400 text-xs mt-0.5">Install ke layar utama HP untuk akses lebih cepat tanpa buka browser</p>
+                <div class="flex gap-2 mt-3">
+                    <button id="pwa-install-btn"
+                            class="flex-1 bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold py-2 px-3 rounded-lg transition-colors">
+                        Install Sekarang
+                    </button>
+                    <button id="pwa-dismiss-btn"
+                            class="text-dark-400 hover:text-white text-xs py-2 px-3 rounded-lg hover:bg-dark-700/50 transition-colors">
+                        Nanti
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
     {{-- ── MAIN CONTENT ─────────────────────────────── --}}
     <div class="flex-1 flex flex-col overflow-hidden">
         {{-- Top bar --}}
@@ -145,5 +185,53 @@
 </div>
 
 @stack('scripts')
+
+{{-- PWA: Service Worker Registration & Install Prompt --}}
+<script>
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW registered:', reg.scope))
+            .catch(err => console.warn('SW registration failed:', err));
+    });
+}
+
+// PWA Install Prompt
+let deferredPrompt = null;
+const installBanner = document.getElementById('pwa-install-banner');
+const installBtn    = document.getElementById('pwa-install-btn');
+const dismissBtn    = document.getElementById('pwa-dismiss-btn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Show banner if not dismissed before
+    if (!localStorage.getItem('pwa-dismissed') && installBanner) {
+        installBanner.classList.remove('hidden');
+        setTimeout(() => installBanner.classList.add('pwa-banner-show'), 100);
+    }
+});
+
+installBtn?.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    installBanner?.classList.add('hidden');
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('PWA install outcome:', outcome);
+    deferredPrompt = null;
+});
+
+dismissBtn?.addEventListener('click', () => {
+    installBanner?.classList.add('hidden');
+    localStorage.setItem('pwa-dismissed', '1');
+});
+
+window.addEventListener('appinstalled', () => {
+    installBanner?.classList.add('hidden');
+    deferredPrompt = null;
+    console.log('PWA installed!');
+});
+</script>
 </body>
 </html>

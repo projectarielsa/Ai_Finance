@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DebtController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecurringTransactionController;
@@ -77,6 +78,16 @@ Route::middleware('auth')->group(function () {
     // Recurring Transactions
     Route::resource('recurring', RecurringTransactionController::class)->except(['show']);
     Route::post('recurring/{recurring}/execute', [RecurringTransactionController::class, 'executeNow'])->name('recurring.execute');
+
+    // Debts (Hutang & Piutang)
+    Route::get('debts',                             [DebtController::class, 'index'])->name('debts.index');
+    Route::post('debts',                            [DebtController::class, 'store'])->name('debts.store');
+    Route::get('debts/{debt}',                      [DebtController::class, 'show'])->name('debts.show');
+    Route::get('debts/{debt}/edit',                 [DebtController::class, 'edit'])->name('debts.edit');
+    Route::put('debts/{debt}',                      [DebtController::class, 'update'])->name('debts.update');
+    Route::delete('debts/{debt}',                   [DebtController::class, 'destroy'])->name('debts.destroy');
+    Route::post('debts/{debt}/pay',                 [DebtController::class, 'pay'])->name('debts.pay');
+    Route::post('debts/{debt}/mark-paid',           [DebtController::class, 'markPaid'])->name('debts.markPaid');
 
     // Goals
     Route::get('goals',                         [GoalController::class, 'index'])->name('goals.index');
