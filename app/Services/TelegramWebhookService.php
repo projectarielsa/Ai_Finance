@@ -984,9 +984,9 @@ class TelegramWebhookService
             return ['success' => false, 'message' => "❌ Transaksi tidak ditemukan atau sudah dihapus."];
         }
 
-        // Only allow undo within 30 minutes
-        if ($transaction->created_at->lt(now()->subMinutes(30))) {
-            return ['success' => false, 'message' => "⏰ Transaksi sudah lebih dari 30 menit.\n\nUndo hanya bisa dilakukan dalam 30 menit setelah pencatatan. Hapus manual via web: " . config('app.url') . "/transactions"];
+        // Only allow undo within 5 minutes
+        if ($transaction->created_at->lt(now()->subMinutes(5))) {
+            return ['success' => false, 'message' => "⏰ Waktu undo sudah habis (maks 5 menit).\n\nHapus manual via web: " . config('app.url') . "/transactions"];
         }
 
         try {
