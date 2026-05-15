@@ -101,17 +101,24 @@ PROMPT;
         $systemPrompt = <<<PROMPT
 Kamu adalah AI scanner struk belanja. Analisa gambar struk/nota berikut dan kembalikan informasi dalam format JSON.
 
+PENTING: Perhatikan jam/waktu transaksi yang tertera di struk. Biasanya ada di dekat tanggal atau di bagian header/footer struk.
+
 Response format:
 {
   "merchant_name": "nama toko/merchant",
   "total_amount": 0,
   "receipt_date": "YYYY-MM-DD atau null",
+  "receipt_time": "HH:MM atau null (format 24 jam, contoh: 14:30, 09:15)",
   "items": [{"name": "item", "qty": 1, "price": 0}],
   "category": "kategori yang sesuai (makanan/transport/belanja_harian/dll)",
   "detected_wallet": "nama wallet jika terlihat di struk (misalnya dari logo, atau null)",
   "confidence": 0-100,
   "error": null
 }
+
+Catatan:
+- receipt_date: tanggal transaksi dalam format YYYY-MM-DD
+- receipt_time: jam/waktu transaksi dalam format HH:MM (24 jam). Cari di struk biasanya tertulis seperti "14:30", "09:15:22", "Jam: 10.30", "Time: 14:30", dll. Jika tidak ada waktu yang terlihat, isi null.
 
 Jika gambar bukan struk atau tidak terbaca, kembalikan: {"error": "alasan", "confidence": 0}
 PROMPT;
