@@ -132,12 +132,16 @@ class TelegramWebhookService
         $result = $this->transactionParser->parseAndSave($text, $user, null, 'telegram_text');
 
         if ($result['success']) {
-            $this->telegram->sendMessage($chatId, $result['message']);
-            $msgRecord->update(['transaction_id' => $result['transaction']?->id]);
+            // Send success message with Undo button
+            $transaction = $result['transaction'] ?? null;
+            if ($transaction) {
+                $this->sendMessageWithUndo($chatId, $result['message'], $transaction->id);
+                $msgRecord->update(['transaction_id' => $transaction->id]);
 
-            // Trigger alert jika transaksi besar (async, tidak delay respons)
-            if (isset($result['transaction'])) {
-                $this->transactionParser->maybeTriggerBigAlert($result['transaction'], $user);
+                // Trigger alert jika transaksi besar (async, tidak delay respons)
+                $this->transactionParser->maybeTriggerBigAlert($transaction, $user);
+            } else {
+                $this->telegram->sendMessage($chatId, $result['message']);
             }
             return;
         }
@@ -823,13 +827,12 @@ class TelegramWebhookService
 
             $result = $this->transactionParser->saveFromParsed($pendingData, $user, 'telegram_text');
 
-            if ($result['success']) {
-                $this->telegram->editMessageText($chatId, $msgId, $result['message']);
+            if ($result['success'] && isset($result['transaction'])) {
+                // Edit message to show success + undo button
+                $this->editMessageWithUndo($chatId, $msgId, $result['message'], $result['transaction']->id);
 
                 // Trigger big transaction alert if applicable
-                if (isset($result['transaction'])) {
-                    $this->transactionParser->maybeTriggerBigAlert($result['transaction'], $user);
-                }
+                $this->transactionParser->maybeTriggerBigAlert($result['transaction'], $user);
             } else {
                 $this->telegram->editMessageText($chatId, $msgId, $result['message']);
             }
@@ -848,6 +851,17 @@ class TelegramWebhookService
                 $msgId,
                 "❌ Transaksi dibatalkan.\n\nPesan tidak dicatat sebagai transaksi. Silakan kirim ulang jika ingin mencoba lagi."
             );
+            return;
+        }
+
+        // ── tx_undo:{transaction_id} ──────────────────────────────────────
+        if (str_starts_with($data, 'tx_undo:')) {
+            $transactionId = (int) substr($data, strlen('tx_undo:'));
+
+            if (!$transactionId) return;
+
+            $result = $this->undoTransaction($transactionId, $user);
+            $this->telegram->editMessageText($chatId, $msgId, $result['message']);
             return;
         }
     }
@@ -890,6 +904,123 @@ class TelegramWebhookService
                 'inline_keyboard' => $buttons,
             ]),
         ]);
+    }
+
+    /**
+     * Send a transaction success message with an inline "Undo" button.
+     */
+    protected function sendMessageWithUndo(int|string $chatId, string $message, int $transactionId): void
+    {
+        $buttons = [
+            [
+                [
+                    'text'          => '↩️ Undo',
+                    'callback_data' => "tx_undo:{$transactionId}",
+                ],
+            ],
+        ];
+
+        $this->telegram->sendMessage($chatId, $message, [
+            'reply_markup' => json_encode([
+                'inline_keyboard' => $buttons,
+            ]),
+        ]);
+    }
+
+    /**
+     * Edit an existing message to show transaction success with an inline "Undo" button.
+     * Used after confirming a low-confidence transaction.
+     */
+    protected function editMessageWithUndo(int|string $chatId, int $messageId, string $message, int $transactionId): void
+    {
+        $buttons = [
+            [
+                [
+                    'text'          => '↩️ Undo',
+                    'callback_data' => "tx_undo:{$transactionId}",
+                ],
+            ],
+        ];
+
+        // Use raw Telegram API call since editMessageText helper strips keyboard
+        try {
+            \Illuminate\Support\Facades\Http::withHeaders([
+                'Content-Type' => 'application/json',
+            ])->timeout(10)->post(
+                "https://api.telegram.org/bot" . app(AppSettingService::class)->getTelegramToken() . "/editMessageText",
+                [
+                    'chat_id'      => $chatId,
+                    'message_id'   => $messageId,
+                    'text'         => $message,
+                    'parse_mode'   => 'Markdown',
+                    'reply_markup' => json_encode(['inline_keyboard' => $buttons]),
+                ]
+            );
+        } catch (\Throwable $e) {
+            // Fallback: just edit without button
+            $this->telegram->editMessageText($chatId, $messageId, $message);
+        }
+    }
+
+    /**
+     * Undo (delete) a transaction and restore wallet balance.
+     * Only allows undo for transactions created within the last 30 minutes.
+     */
+    protected function undoTransaction(int $transactionId, User $user): array
+    {
+        $transaction = \App\Models\Transaction::where('id', $transactionId)
+            ->where('user_id', $user->id)
+            ->where('status', 'completed')
+            ->first();
+
+        if (!$transaction) {
+            return ['success' => false, 'message' => "❌ Transaksi tidak ditemukan atau sudah dihapus."];
+        }
+
+        // Only allow undo within 30 minutes
+        if ($transaction->created_at->lt(now()->subMinutes(30))) {
+            return ['success' => false, 'message' => "⏰ Transaksi sudah lebih dari 30 menit.\n\nUndo hanya bisa dilakukan dalam 30 menit setelah pencatatan. Hapus manual via web: " . config('app.url') . "/transactions"];
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($transaction) {
+                $wallet = \App\Models\Wallet::lockForUpdate()->findOrFail($transaction->wallet_id);
+
+                // Restore wallet balance
+                match ($transaction->type) {
+                    'income'   => $wallet->debit($transaction->amount),
+                    'expense'  => $wallet->credit($transaction->amount),
+                    'transfer' => (static function () use ($wallet, $transaction): void {
+                        $wallet->credit($transaction->amount);
+                        if ($transaction->target_wallet_id) {
+                            $targetWallet = \App\Models\Wallet::lockForUpdate()->findOrFail($transaction->target_wallet_id);
+                            $targetWallet->debit($transaction->amount);
+                        }
+                    })(),
+                };
+
+                // Soft delete the transaction
+                $transaction->update(['status' => 'cancelled']);
+                $transaction->delete(); // soft delete
+            });
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Undo transaction failed: " . $e->getMessage());
+            return ['success' => false, 'message' => "❌ Gagal membatalkan transaksi. Coba lagi."];
+        }
+
+        $amount = 'Rp' . number_format($transaction->amount, 0, ',', '.');
+        $type   = match ($transaction->type) {
+            'income'   => 'Pemasukan',
+            'expense'  => 'Pengeluaran',
+            'transfer' => 'Transfer',
+        };
+
+        return [
+            'success' => true,
+            'message' => "↩️ *Transaksi dibatalkan!*\n\n" .
+                         "_{$type} {$amount} telah dihapus._\n" .
+                         "Saldo wallet sudah dikembalikan.",
+        ];
     }
 
     /**
