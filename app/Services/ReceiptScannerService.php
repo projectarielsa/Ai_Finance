@@ -47,6 +47,21 @@ class ReceiptScannerService
         // Call Vision AI
         $scanned = $this->grokAI->scanReceipt($imageBase64, $mimeType, $user);
 
+        // Build receipt datetime (date + time if available)
+        $receiptDateTime = now();
+        if (!empty($scanned['receipt_date'])) {
+            $dateStr = $scanned['receipt_date'];
+            $timeStr = $scanned['receipt_time'] ?? null;
+
+            if ($timeStr) {
+                // Combine date + time: "2024-01-15" + "14:30" → "2024-01-15 14:30:00"
+                $receiptDateTime = date('Y-m-d H:i:s', strtotime("{$dateStr} {$timeStr}"));
+            } else {
+                // Only date available, use current time
+                $receiptDateTime = date('Y-m-d H:i:s', strtotime("{$dateStr} " . now()->format('H:i:s')));
+            }
+        }
+
         // Save receipt scan record
         $receiptScan = ReceiptScan::create([
             'user_id'                   => $user->id,
@@ -54,9 +69,7 @@ class ReceiptScannerService
             'image_path'                => $imagePath,
             'merchant_name'             => $scanned['merchant_name'] ?? null,
             'total_amount'              => $scanned['total_amount'] ?? null,
-            'receipt_date'              => !empty($scanned['receipt_date'])
-                                            ? date('Y-m-d', strtotime($scanned['receipt_date']))
-                                            : now()->toDateString(),
+            'receipt_date'              => $receiptDateTime,
             'items'                     => $scanned['items'] ?? null,
             'detected_category'         => $scanned['category'] ?? null,
             'detected_wallet'           => $scanned['detected_wallet'] ?? null,
@@ -89,9 +102,13 @@ class ReceiptScannerService
         $receiptScan->update(['needs_wallet_confirmation' => true]);
 
         $merchantText = $merchant ? "\nMerchant: *{$merchant}*" : '';
-        $dateText     = !empty($scanned['receipt_date'])
-                        ? "\nTanggal: " . date('d M Y', strtotime($scanned['receipt_date']))
-                        : '';
+        $dateText     = '';
+        if (!empty($scanned['receipt_date'])) {
+            $dateText = "\nTanggal: " . date('d M Y', strtotime($scanned['receipt_date']));
+            if (!empty($scanned['receipt_time'])) {
+                $dateText .= " " . $scanned['receipt_time'];
+            }
+        }
 
         return [
             'success'      => true,
@@ -166,8 +183,8 @@ class ReceiptScannerService
         $amount   = number_format($receiptScan->total_amount, 0, ',', '.');
         $merchant = $receiptScan->merchant_name;
         $date     = $receiptScan->receipt_date
-            ? date('d M Y', strtotime($receiptScan->receipt_date))
-            : now()->format('d M Y');
+            ? date('d M Y H:i', strtotime($receiptScan->receipt_date))
+            : now()->format('d M Y H:i');
 
         return [
             'success'     => true,
