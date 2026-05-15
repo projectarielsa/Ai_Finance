@@ -23,6 +23,12 @@ Schedule::call(function () {
     \App\Jobs\DailyReminderJob::dispatch($currentHour);
 })->hourly()->name('daily-reminders');
 
+// ── Daily summary — setiap malam jam 21:00 WIB ───────────────────────────────
+Schedule::job(new \App\Jobs\SendDailySummaryJob)
+    ->dailyAt('21:00')
+    ->timezone('Asia/Jakarta')
+    ->name('daily-summary');
+
 // ── Weekly summary — setiap Senin jam 07:30 ──────────────────────────────────
 Schedule::job(new \App\Jobs\WeeklySummaryJob)
     ->weeklyOn(1, '07:30')
