@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Wallet;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class TransactionParserService
@@ -46,6 +47,21 @@ class TransactionParserService
 
         $amount = (float) ($parsed['amount'] ?? 0);
         $type   = $parsed['type'] ?? 'expense';
+        $confidence = (int) ($parsed['confidence'] ?? 0);
+
+        // ── Low confidence → return for confirmation ──────────────────────
+        // If AI is not confident enough, don't save directly — ask user first
+        if ($confidence > 0 && $confidence < 70) {
+            return [
+                'success'            => false,
+                'needs_confirmation' => true,
+                'parsed'             => $parsed,
+                'amount'             => $amount,
+                'type'               => $type,
+                'confidence'         => $confidence,
+                'message'            => null, // will be built by the caller
+            ];
+        }
 
         // ── Find source wallet ────────────────────────────────────────────
         $walletName = $parsed['wallet'] ?? '';
@@ -170,6 +186,211 @@ class TransactionParserService
         }
 
         return $result;
+    }
+
+    /**
+     * Parse a message WITHOUT saving — returns parsed data for confirmation flow.
+     * Used when confidence is low and we need user confirmation first.
+     */
+    public function parseOnly(string $message, User $user): array
+    {
+        $wallets    = $user->wallets()->where('is_active', true)->get();
+        $categories = Category::where(function ($q) use ($user) {
+            $q->whereNull('user_id')->orWhere('user_id', $user->id);
+        })->where('is_active', true)->get();
+
+        // Call AI to parse
+        $parsed = $this->grokAI->parseTransaction(
+            $message, $user,
+            $wallets->toArray(),
+            $categories->toArray()
+        );
+
+        // AI failed / returned error
+        if (!empty($parsed['error']) || empty($parsed['amount'])) {
+            return [
+                'success'    => false,
+                'is_transaction' => false,
+                'parsed'     => $parsed,
+            ];
+        }
+
+        $amount = (float) ($parsed['amount'] ?? 0);
+        $type   = $parsed['type'] ?? 'expense';
+
+        // Find wallet
+        $walletName = $parsed['wallet'] ?? '';
+        $wallet     = $this->findWallet($walletName, $wallets);
+        if (!$wallet && $wallets->count() === 1) {
+            $wallet = $wallets->first();
+        }
+
+        // Find target wallet (transfer)
+        $targetWallet = null;
+        if ($type === 'transfer') {
+            $targetName   = $parsed['target_wallet'] ?? 'Cash';
+            $targetWallet = $this->findWallet($targetName, $wallets);
+            if (!$targetWallet) {
+                $targetWallet = $wallets->first(fn ($w) => strtolower($w->name) === 'cash');
+            }
+        }
+
+        // Find category
+        $category = $this->findCategory($parsed['category'] ?? '', $categories, $type);
+
+        return [
+            'success'        => true,
+            'is_transaction' => true,
+            'parsed'         => $parsed,
+            'amount'         => $amount,
+            'type'           => $type,
+            'wallet'         => $wallet,
+            'target_wallet'  => $targetWallet,
+            'category'       => $category,
+            'confidence'     => (int) ($parsed['confidence'] ?? 0),
+        ];
+    }
+
+    /**
+     * Save a transaction from previously parsed data (after user confirmation).
+     * Called when user confirms a low-confidence transaction.
+     */
+    public function saveFromParsed(array $pendingData, User $user, string $source = 'telegram_text'): array
+    {
+        $parsed       = $pendingData['parsed'];
+        $amount       = (float) ($pendingData['amount'] ?? $parsed['amount'] ?? 0);
+        $type         = $pendingData['type'] ?? $parsed['type'] ?? 'expense';
+        $walletId     = $pendingData['wallet_id'] ?? null;
+        $targetWalletId = $pendingData['target_wallet_id'] ?? null;
+        $categoryId   = $pendingData['category_id'] ?? null;
+        $message      = $parsed['original_message'] ?? $parsed['description'] ?? '';
+
+        $wallets = $user->wallets()->where('is_active', true)->get();
+
+        // Resolve wallet
+        $wallet = $walletId ? $wallets->firstWhere('id', $walletId) : null;
+        if (!$wallet) {
+            $wallet = $this->findWallet($parsed['wallet'] ?? '', $wallets);
+        }
+        if (!$wallet && $wallets->count() === 1) {
+            $wallet = $wallets->first();
+        }
+        if (!$wallet) {
+            return ['success' => false, 'message' => '❌ Wallet tidak ditemukan.'];
+        }
+
+        // Resolve target wallet
+        $targetWallet = null;
+        if ($type === 'transfer') {
+            $targetWallet = $targetWalletId ? $wallets->firstWhere('id', $targetWalletId) : null;
+            if (!$targetWallet) {
+                $targetWallet = $this->findWallet($parsed['target_wallet'] ?? 'Cash', $wallets);
+            }
+            if (!$targetWallet) {
+                $targetWallet = $wallets->first(fn ($w) => strtolower($w->name) === 'cash');
+            }
+        }
+
+        // Resolve category
+        $categories = Category::where(function ($q) use ($user) {
+            $q->whereNull('user_id')->orWhere('user_id', $user->id);
+        })->where('is_active', true)->get();
+        $category = $categoryId ? $categories->firstWhere('id', $categoryId) : null;
+        if (!$category) {
+            $category = $this->findCategory($parsed['category'] ?? '', $categories, $type);
+        }
+
+        try {
+            $result = DB::transaction(function () use (
+                $user, $wallet, $targetWallet, $category,
+                $type, $amount, $parsed, $message, $source
+            ) {
+                $wallet = Wallet::lockForUpdate()->findOrFail($wallet->id);
+                if ($targetWallet) {
+                    $targetWallet = Wallet::lockForUpdate()->findOrFail($targetWallet->id);
+                }
+
+                if (in_array($type, ['expense', 'transfer']) && !$wallet->hasSufficientBalance($amount)) {
+                    return [
+                        'success'       => false,
+                        'balance_error' => true,
+                        'message'       => "⚠️ Saldo *{$wallet->name}* tidak cukup.\n" .
+                                           "Saldo: Rp" . number_format($wallet->balance, 0, ',', '.') . "\n" .
+                                           "Dibutuhkan: Rp" . number_format($amount, 0, ',', '.'),
+                    ];
+                }
+
+                $duplicateOf = Transaction::where('user_id', $user->id)
+                    ->where('type', $type)
+                    ->where('amount', $amount)
+                    ->where('wallet_id', $wallet->id)
+                    ->where('status', 'completed')
+                    ->where('created_at', '>=', now()->subMinutes(5))
+                    ->value('id');
+
+                $transaction = Transaction::create([
+                    'user_id'          => $user->id,
+                    'wallet_id'        => $wallet->id,
+                    'target_wallet_id' => $targetWallet?->id,
+                    'category_id'      => $category?->id,
+                    'type'             => $type,
+                    'amount'           => $amount,
+                    'description'      => $parsed['description'] ?? $message,
+                    'merchant'         => $parsed['merchant'] ?? null,
+                    'transaction_date' => now(),
+                    'source'           => $source,
+                    'ai_confidence'    => $parsed['confidence'] ?? null,
+                    'ai_raw_response'  => json_encode($parsed),
+                    'ai_parsed_data'   => $parsed,
+                    'status'           => 'completed',
+                    'is_duplicate'     => $duplicateOf !== null,
+                    'duplicate_of'     => $duplicateOf,
+                ]);
+
+                match ($type) {
+                    'income'   => $wallet->credit($amount),
+                    'expense'  => $wallet->debit($amount),
+                    'transfer' => (static function () use ($wallet, $targetWallet, $amount): void {
+                        $wallet->debit($amount);
+                        $targetWallet?->credit($amount);
+                    })(),
+                };
+
+                return [
+                    'success'     => true,
+                    'transaction' => $transaction,
+                    'wallet'      => $wallet,
+                    'message'     => $this->buildSuccessMessage($transaction, $wallet, $targetWallet, $category),
+                ];
+            });
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => '❌ Gagal menyimpan transaksi. Coba lagi.'];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Store pending transaction data in cache for confirmation flow.
+     * Returns a unique key to reference the pending data.
+     */
+    public function storePendingConfirmation(int $userId, array $data): string
+    {
+        $key = "pending_tx:{$userId}:" . uniqid();
+        Cache::put($key, $data, now()->addMinutes(10)); // expires in 10 minutes
+        return $key;
+    }
+
+    /**
+     * Retrieve and delete pending transaction data from cache.
+     */
+    public function getPendingConfirmation(string $key): ?array
+    {
+        $data = Cache::get($key);
+        if ($data) {
+            Cache::forget($key);
+        }
+        return $data;
     }
 
     /**
