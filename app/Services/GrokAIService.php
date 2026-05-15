@@ -42,7 +42,22 @@ Kamu adalah asisten keuangan pintar. Parse pesan berikut menjadi data transaksi 
 User memiliki wallet: {$walletList}
 Kategori tersedia: {$categoryList}
 
-Aturan parsing:
+PENTING — Bedakan antara TRANSAKSI vs BUKAN TRANSAKSI:
+- TRANSAKSI: pesan yang MEMERINTAHKAN untuk mencatat uang masuk/keluar/transfer
+  Contoh transaksi: "beli kopi 25rb gopay", "gaji masuk 5jt bca", "transfer 100rb ke dana"
+- BUKAN TRANSAKSI: pertanyaan, cek saldo, obrolan, atau pesan ambigu
+  Contoh BUKAN transaksi:
+  • "gopay gue ada 5k gak?" (ini PERTANYAAN, bukan perintah catat)
+  • "berapa saldo bca?" (pertanyaan saldo)
+  • "bulan ini habis berapa?" (pertanyaan rekap)
+  • "50rb cukup gak ya?" (pertanyaan/opini)
+  • "harga kopi 25rb mahal gak?" (pertanyaan, bukan pembelian)
+  • "ada uang 100rb di dompet" (pernyataan, bukan transaksi baru)
+
+Jika pesan adalah PERTANYAAN atau BUKAN perintah catat transaksi, WAJIB kembalikan:
+{"error": "Ini pertanyaan, bukan transaksi", "confidence": 0}
+
+Aturan parsing (hanya jika memang transaksi):
 - Deteksi jenis transaksi: income (pemasukan), expense (pengeluaran), transfer (transfer antar wallet)
 - Deteksi nominal: 25k=25000, 25rb=25000, 2jt=2000000, 1,5 juta=1500000, dll
 - Deteksi wallet sumber (dari daftar wallet user jika ada)
@@ -50,6 +65,12 @@ Aturan parsing:
 - Deteksi kategori (gunakan nama yang paling sesuai dari daftar kategori)
 - Deteksi merchant jika ada
 - "tarik tunai" dari bank = transfer ke Cash
+
+Pedoman confidence:
+- 90-100: pesan jelas sekali adalah transaksi (ada kata kerja + nominal + wallet)
+- 70-89: kemungkinan besar transaksi tapi kurang lengkap
+- 40-69: ambigu, bisa transaksi bisa bukan — berikan confidence rendah
+- 0-39: kemungkinan besar BUKAN transaksi — kembalikan error
 
 Response HARUS dalam format JSON valid:
 {
@@ -66,7 +87,7 @@ Response HARUS dalam format JSON valid:
   "original_message": "pesan asli"
 }
 
-Jika tidak bisa dipahami, kembalikan: {"error": "alasan", "confidence": 0}
+Jika BUKAN transaksi atau tidak bisa dipahami, kembalikan: {"error": "alasan", "confidence": 0}
 PROMPT;
 
         $startTime = microtime(true);
