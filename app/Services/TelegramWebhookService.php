@@ -786,8 +786,12 @@ class TelegramWebhookService
             // Process with chosen wallet
             $result = $this->receiptScanner->confirmWallet($receiptScan, $walletName, $user);
 
-            // Edit original message — remove keyboard and show result
-            $this->telegram->editMessageText($chatId, $msgId, $result['message']);
+            // Edit original message — show result with Undo button if transaction was created
+            if (($result['success'] ?? false) && isset($result['transaction'])) {
+                $this->editMessageWithUndo($chatId, $msgId, $result['message'], $result['transaction']->id);
+            } else {
+                $this->telegram->editMessageText($chatId, $msgId, $result['message']);
+            }
             return;
         }
 
