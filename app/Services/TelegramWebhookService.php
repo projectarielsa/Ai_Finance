@@ -540,10 +540,13 @@ class TelegramWebhookService
         $msgRecord->update(['media_path' => $path]);
 
         $result = $this->voiceService->processVoiceNote($path, $user, $msgRecord->id);
-        $this->telegram->sendMessage($chatId, $result['message']);
 
-        if ($result['success'] ?? false) {
-            $msgRecord->update(['transaction_id' => $result['transaction']?->id]);
+        // Send with Undo button if transaction was created
+        if (($result['success'] ?? false) && isset($result['transaction'])) {
+            $this->sendMessageWithUndo($chatId, $result['message'], $result['transaction']->id);
+            $msgRecord->update(['transaction_id' => $result['transaction']->id]);
+        } else {
+            $this->telegram->sendMessage($chatId, $result['message']);
         }
     }
 
