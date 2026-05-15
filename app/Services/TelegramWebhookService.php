@@ -142,6 +142,12 @@ class TelegramWebhookService
             return;
         }
 
+        // ── 4b. Low confidence → minta konfirmasi user dulu ──────────────
+        if (!empty($result['needs_confirmation'])) {
+            $this->sendTransactionConfirmation($chatId, $user, $result);
+            return;
+        }
+
         if ($result['balance_error'] ?? false) {
             $this->telegram->sendMessage($chatId, $result['message']);
             return;
@@ -804,6 +810,46 @@ class TelegramWebhookService
             );
             return;
         }
+
+        // ── tx_confirm:{cache_key} ────────────────────────────────────────
+        if (str_starts_with($data, 'tx_confirm:')) {
+            $cacheKey = substr($data, strlen('tx_confirm:'));
+
+            $pendingData = $this->transactionParser->getPendingConfirmation($cacheKey);
+            if (!$pendingData) {
+                $this->telegram->editMessageText($chatId, $msgId, "⏰ Konfirmasi sudah kedaluwarsa. Silakan kirim ulang pesan transaksi.");
+                return;
+            }
+
+            $result = $this->transactionParser->saveFromParsed($pendingData, $user, 'telegram_text');
+
+            if ($result['success']) {
+                $this->telegram->editMessageText($chatId, $msgId, $result['message']);
+
+                // Trigger big transaction alert if applicable
+                if (isset($result['transaction'])) {
+                    $this->transactionParser->maybeTriggerBigAlert($result['transaction'], $user);
+                }
+            } else {
+                $this->telegram->editMessageText($chatId, $msgId, $result['message']);
+            }
+            return;
+        }
+
+        // ── tx_cancel:{cache_key} ─────────────────────────────────────────
+        if (str_starts_with($data, 'tx_cancel:')) {
+            $cacheKey = substr($data, strlen('tx_cancel:'));
+
+            // Remove from cache (if still exists)
+            $this->transactionParser->getPendingConfirmation($cacheKey);
+
+            $this->telegram->editMessageText(
+                $chatId,
+                $msgId,
+                "❌ Transaksi dibatalkan.\n\nPesan tidak dicatat sebagai transaksi. Silakan kirim ulang jika ingin mencoba lagi."
+            );
+            return;
+        }
     }
 
     /**
@@ -844,6 +890,118 @@ class TelegramWebhookService
                 'inline_keyboard' => $buttons,
             ]),
         ]);
+    }
+
+    /**
+     * Send transaction confirmation prompt with inline keyboard (Yes/No).
+     * Used when AI confidence is low (< 70) to prevent accidental transaction recording.
+     */
+    protected function sendTransactionConfirmation(int|string $chatId, User $user, array $result): void
+    {
+        $parsed     = $result['parsed'];
+        $amount     = (float) ($result['amount'] ?? $parsed['amount'] ?? 0);
+        $type       = $result['type'] ?? $parsed['type'] ?? 'expense';
+        $confidence = $result['confidence'] ?? ($parsed['confidence'] ?? 0);
+        $wallet     = $parsed['wallet'] ?? '-';
+        $category   = $parsed['category'] ?? '-';
+        $description = $parsed['description'] ?? '-';
+
+        $typeLabel = match ($type) {
+            'income'   => '💰 Pemasukan',
+            'expense'  => '💸 Pengeluaran',
+            'transfer' => '🔄 Transfer',
+            default    => '📝 Transaksi',
+        };
+
+        $amountFmt = 'Rp' . number_format($amount, 0, ',', '.');
+
+        // Build confirmation message
+        $msg  = "🤔 *Apakah ini transaksi?*\n\n";
+        $msg .= "{$typeLabel}\n";
+        $msg .= "Jumlah: *{$amountFmt}*\n";
+        $msg .= "Wallet: {$wallet}\n";
+        $msg .= "Kategori: {$category}\n";
+        if ($description && $description !== '-') {
+            $msg .= "Deskripsi: _{$description}_\n";
+        }
+        if ($type === 'transfer' && !empty($parsed['target_wallet'])) {
+            $msg .= "Ke: {$parsed['target_wallet']}\n";
+        }
+        $msg .= "\n_Confidence: {$confidence}%_";
+
+        // Store pending data in cache
+        $wallets = $user->wallets()->where('is_active', true)->get();
+        $walletObj = $this->findWalletForConfirmation($parsed['wallet'] ?? '', $wallets);
+        $targetWalletObj = null;
+        if ($type === 'transfer') {
+            $targetWalletObj = $this->findWalletForConfirmation($parsed['target_wallet'] ?? 'Cash', $wallets);
+        }
+
+        $categories = \App\Models\Category::where(function ($q) use ($user) {
+            $q->whereNull('user_id')->orWhere('user_id', $user->id);
+        })->where('is_active', true)->get();
+        $categoryObj = $categories->first(fn ($c) =>
+            strtolower($c->name) === strtolower($category) ||
+            str_contains(strtolower($c->name), strtolower($category)) ||
+            str_contains(strtolower($category), strtolower($c->name))
+        );
+
+        $pendingData = [
+            'parsed'           => $parsed,
+            'amount'           => $amount,
+            'type'             => $type,
+            'wallet_id'        => $walletObj?->id,
+            'target_wallet_id' => $targetWalletObj?->id,
+            'category_id'      => $categoryObj?->id,
+        ];
+
+        $cacheKey = $this->transactionParser->storePendingConfirmation($user->id, $pendingData);
+
+        // Build inline keyboard: ✅ Ya, catat | ❌ Bukan transaksi
+        $buttons = [
+            [
+                [
+                    'text'          => '✅ Ya, catat',
+                    'callback_data' => "tx_confirm:{$cacheKey}",
+                ],
+                [
+                    'text'          => '❌ Bukan transaksi',
+                    'callback_data' => "tx_cancel:{$cacheKey}",
+                ],
+            ],
+        ];
+
+        $this->telegram->sendMessage($chatId, $msg, [
+            'reply_markup' => json_encode([
+                'inline_keyboard' => $buttons,
+            ]),
+        ]);
+    }
+
+    /**
+     * Helper: find wallet by name for confirmation flow.
+     */
+    protected function findWalletForConfirmation(string $name, $wallets): ?\App\Models\Wallet
+    {
+        if (empty(trim($name))) return $wallets->count() === 1 ? $wallets->first() : null;
+
+        $name = strtolower(trim($name));
+
+        $found = $wallets->first(fn ($w) => strtolower($w->name) === $name);
+        if ($found) return $found;
+
+        $found = $wallets->first(fn ($w) => strtolower($w->provider ?? '') === $name);
+        if ($found) return $found;
+
+        foreach ($wallets as $w) {
+            $aliases = array_map('strtolower', $w->ai_aliases ?? []);
+            if (in_array($name, $aliases)) return $w;
+        }
+
+        $found = $wallets->first(fn ($w) => str_contains(strtolower($w->name), $name));
+        if ($found) return $found;
+
+        return $wallets->first(fn ($w) => str_contains($name, strtolower($w->name)));
     }
 
     /**
