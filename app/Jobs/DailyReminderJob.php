@@ -39,8 +39,8 @@ class DailyReminderJob implements ShouldQueue
 
                 // Buat Carbon di timezone user dengan jam reminder, lalu konversi ke server time
                 try {
-                    $reminderInServerTz = \Carbon\Carbon::createFromFormat('H:i', $reminderTime, $userTz)
-                        ->setToday()
+                    $today = now()->timezone($userTz);
+                    $reminderInServerTz = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $today->format('Y-m-d') . ' ' . $reminderTime, $userTz)
                         ->timezone(config('app.timezone', 'UTC'))
                         ->format('H');
                 } catch (\Throwable $e) {
