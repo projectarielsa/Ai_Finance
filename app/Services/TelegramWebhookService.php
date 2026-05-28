@@ -176,7 +176,7 @@ class TelegramWebhookService
 
         // ── Cek saldo ─────────────────────────────────────────────────────
         $saldoKeywords = [
-            'saldo', 'balance', 'duit', 'uang', 'tabungan',
+            'saldo', 'balance', 'duit', 'tabungan',
             'cek saldo', 'lihat saldo', 'berapa saldo', 'saldo ku', 'saldoku',
             'berapa uang', 'ada berapa', 'berapa duit', 'berapa tabungan',
         ];
@@ -198,8 +198,6 @@ class TelegramWebhookService
 
         // ── Cek pengeluaran / pemasukan bulan ini ─────────────────────────
         $expenseKeywords = [
-            'pengeluaran', 'pengeluaran bulan ini', 'habis berapa', 'keluar berapa',
-            'udah keluar berapa', 'sudah keluar', 'sudah habis',
         ];
         foreach ($expenseKeywords as $kw) {
             if (str_contains($lower, $kw)) {
@@ -219,8 +217,6 @@ class TelegramWebhookService
         }
 
         $incomeKeywords = [
-            'pemasukan', 'pemasukan bulan ini', 'penghasilan', 'masuk berapa',
-            'dapat berapa', 'gaji berapa',
         ];
         foreach ($incomeKeywords as $kw) {
             if (str_contains($lower, $kw)) {
@@ -234,9 +230,6 @@ class TelegramWebhookService
 
         // ── Laporan / rekap singkat ────────────────────────────────────────
         $laporanKeywords = [
-            'laporan', 'rekap', 'rekapan', 'ringkasan', 'summary',
-            'laporan bulan ini', 'rekap bulan ini', 'bulan ini gimana',
-            'bulan ini bagaimana', 'gimana keuangan', 'bagaimana keuangan',
         ];
         foreach ($laporanKeywords as $kw) {
             if (str_contains($lower, $kw)) {

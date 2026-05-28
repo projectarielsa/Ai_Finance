@@ -46,10 +46,4 @@
 <p class="text-center text-dark-400 text-sm mt-5">
     Belum punya akun? <a href="{{ route('register') }}" class="text-primary-400 hover:text-primary-300 font-medium">Daftar sekarang</a>
 </p>
-
-<div class="mt-4 p-3 rounded-xl bg-dark-700/30 border border-dark-600/30">
-    <p class="text-xs text-dark-400 text-center font-medium mb-1">Demo Login</p>
-    <p class="text-xs text-dark-500 text-center">Admin: admin@financeai.app / password</p>
-    <p class="text-xs text-dark-500 text-center">User: demo@financeai.app / password</p>
-</div>
 @endsection

@@ -220,33 +220,103 @@ PROMPT;
             return ['error' => 'Transkripsi audio gagal. Silakan kirim pesan teks.', 'success' => false];
         }
     }
+/**
+ * Generate AI financial insight for user.
+ */
+public function generateFinancialInsight(User $user, array $stats): string
+{
+    $income       = $stats['income'] ?? 0;
+    $expense      = $stats['expense'] ?? 0;
+    $topCategory  = $stats['top_category'] ?? 'lainnya';
+    $comparison   = $stats['comparison'] ?? 'stabil';
+    $savingRate   = $stats['saving_rate'] ?? 0;
+    $healthScore  = $stats['health_score'] ?? 0;
+    $prediction   = $stats['prediction'] ?? 0;
+$prompt = <<<PROMPT
+Kamu adalah AI financial coach modern seperti Cleo, Copilot Money, atau Notion AI finance assistant.
 
-    /**
-     * Generate AI financial insight for user.
-     */
-    public function generateFinancialInsight(User $user, array $stats): string
-    {
-        $prompt = <<<PROMPT
-Berikan analisa keuangan singkat (max 3 kalimat) berdasarkan data berikut:
-- Total pemasukan bulan ini: Rp {$stats['income']}
-- Total pengeluaran bulan ini: Rp {$stats['expense']}
-- Kategori pengeluaran terbesar: {$stats['top_category']}
-- Perbandingan bulan lalu: {$stats['comparison']}
+Cara bicara:
+- santai
+- modern
+- singkat
+- natural
+- sedikit casual
+- seperti ngobrol
+- bukan artikel
+- bukan customer service bank
 
-Berikan insight dalam Bahasa Indonesia yang ramah, jelas, dan actionable.
+JANGAN gunakan:
+- "perlu diperhatikan"
+- "disarankan"
+- "sebaiknya"
+- "Anda"
+- "berdasarkan data"
+- "tampaknya"
+
+Fokus:
+- insight paling penting
+- cashflow
+- kebiasaan spending
+- kondisi saldo
+- saving rate
+- dan kasih saran kepada pengguna harus apa dan bagaimana
+
+Data user:
+Income: Rp {$income}
+Expense: Rp {$expense}
+Top Category: {$topCategory}
+Comparison: {$comparison}
+Saving Rate: {$savingRate}%
+Health Score: {$healthScore}
+Predicted Balance: Rp {$prediction}
+
+Contoh gaya yang benar:
+
+"Tagihan bulan ini lumayan makan cashflow, jadi saving rate masih belum gerak banyak. Untungnya kondisi saldo masih aman buat nutup kebutuhan sampai akhir bulan."
+
+atau
+
+"Pengeluaran bulan ini mulai agresif dibanding biasanya, terutama di makanan dan tagihan. Kalau ritmenya tetap sama, saldo akhir bulan bisa kepotong lumayan cepat."
+
+atau
+
+"Cashflow lagi bagus bulan ini. Pemasukan masih jauh lebih tinggi dibanding pengeluaran dan kondisi finansial tetap stabil."
+
+WAJIB:
+- maksimal 10 kalimat
+- jangan formal
+- jangan panjang
+- jangan terdengar seperti ChatGPT
+- jangan menjelaskan semua data
+- cukup insight inti saja
 PROMPT;
 
-        try {
-            $response = $this->callApi([
-                ['role' => 'system', 'content' => 'Kamu adalah analis keuangan pribadi yang ramah dan profesional.'],
-                ['role' => 'user', 'content' => $prompt],
-            ], useVision: false);
-            return trim($response['choices'][0]['message']['content'] ?? 'Tidak ada data insight.');
-        } catch (\Throwable $e) {
-            Log::error('AI insight error: ' . $e->getMessage());
-            return 'Insight keuangan tidak tersedia saat ini.';
-        }
+    try {
+
+        $response = $this->callApi([
+            [
+                'role' => 'system',
+                'content' => 'Kamu adalah AI financial advisor modern yang natural dan premium.'
+            ],
+            [
+                'role' => 'user',
+                'content' => $prompt
+            ],
+        ], useVision: false);
+
+        return trim(
+            $response['choices'][0]['message']['content']
+            ?? 'Cashflow bulan ini masih cukup stabil.'
+        );
+
+    } catch (\Throwable $e) {
+
+        \Log::error('AI insight error: ' . $e->getMessage());
+
+        return 'Cashflow bulan ini masih cukup sehat dan pengeluaran tetap terkendali.';
     }
+}
+
 
     /**
      * Answer a financial question from Telegram using full DB context.
@@ -323,7 +393,7 @@ PROMPT;
         ])->timeout(60)->post("{$this->baseUrl}/chat/completions", [
             'model'       => $model,
             'messages'    => $messages,
-            'temperature' => 0.1,
+            'temperature' => 0.9,
             'max_tokens'  => 1024,
         ]);
 
