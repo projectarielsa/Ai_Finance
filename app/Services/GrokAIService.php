@@ -35,9 +35,12 @@ class GrokAIService
     {
         $walletList   = collect($wallets)->pluck('name')->join(', ');
         $categoryList = collect($categories)->pluck('name')->join(', ');
+        $today        = now()->format('Y-m-d (l, d F Y)');
 
         $systemPrompt = <<<PROMPT
 Kamu adalah asisten keuangan pintar. Parse pesan berikut menjadi data transaksi keuangan dalam format JSON.
+
+Hari ini: {$today}
 
 User memiliki wallet: {$walletList}
 Kategori tersedia: {$categoryList}
@@ -65,6 +68,13 @@ Aturan parsing (hanya jika memang transaksi):
 - Deteksi kategori (gunakan nama yang paling sesuai dari daftar kategori)
 - Deteksi merchant jika ada
 - "tarik tunai" dari bank = transfer ke Cash
+- Deteksi TANGGAL & WAKTU jika disebutkan dalam pesan:
+  • "tanggal 26 mei 2026" → "2026-05-26"
+  • "kemarin" → tanggal kemarin dari hari ini
+  • "tadi pagi", "tadi malam" → hari ini
+  • "26 mei jam 18.00" → date: "2026-05-26", time: "18:00"
+  • "minggu lalu" → tanggal 7 hari yang lalu
+  • Jika TIDAK ada tanggal disebutkan → isi null (artinya hari ini)
 
 Pedoman confidence:
 - 90-100: pesan jelas sekali adalah transaksi (ada kata kerja + nominal + wallet)
@@ -82,6 +92,8 @@ Response HARUS dalam format JSON valid:
   "category": "nama kategori",
   "description": "deskripsi singkat",
   "merchant": "nama merchant atau null",
+  "transaction_date": "YYYY-MM-DD atau null (null = hari ini)",
+  "transaction_time": "HH:MM format 24 jam atau null",
   "confidence": 0-100,
   "error": null,
   "original_message": "pesan asli"
