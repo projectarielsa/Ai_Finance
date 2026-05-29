@@ -40,10 +40,17 @@ class ProfileController extends Controller
             $data['avatar'] = $request->file('avatar')->store('avatars', 'public');
         }
 
-        $data['telegram_notifications']          = $request->boolean('telegram_notifications');
-        $data['daily_reminder_enabled']          = $request->boolean('daily_reminder_enabled');
-        $data['weekly_summary_enabled']          = $request->boolean('weekly_summary_enabled');
-        $data['big_transaction_alert_enabled']   = $request->boolean('big_transaction_alert_enabled');
+        // Hanya update boolean fields yang memang ada di form yang di-submit
+        // Ini mencegah form Profil me-reset reminder settings & sebaliknya
+        if ($request->has('telegram_notifications') || $request->has('_telegram_notifications_field')) {
+            $data['telegram_notifications'] = $request->boolean('telegram_notifications');
+        }
+        if ($request->has('daily_reminder_enabled') || $request->has('_reminder_field')) {
+            $data['daily_reminder_enabled']        = $request->boolean('daily_reminder_enabled');
+            $data['weekly_summary_enabled']        = $request->boolean('weekly_summary_enabled');
+            $data['big_transaction_alert_enabled'] = $request->boolean('big_transaction_alert_enabled');
+        }
+
         $user->update($data);
 
         return back()->with('success', 'Profil berhasil diperbarui!');
