@@ -29,7 +29,7 @@
             </div>
             <div class="form-group">
                 <label class="input-label">Nominal (Rp) *</label>
-                <input type="number" name="amount" value="{{ old('amount', $debt->amount) }}" class="input-field" min="{{ $debt->paid_amount }}" step="1000" required>
+                <input type="number" name="amount" value="{{ old('amount', $debt->amount) }}" class="input-field" min="{{ $debt->paid_amount }}" step="1" required>
                 @if($debt->paid_amount > 0)
                 <p class="text-dark-500 text-xs mt-1">Minimal Rp {{ number_format($debt->paid_amount,0,',','.') }} (sudah terbayar)</p>
                 @endif

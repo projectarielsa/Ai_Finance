@@ -74,7 +74,7 @@
                     <summary class="text-xs text-dark-400 cursor-pointer hover:text-dark-200">Edit budget</summary>
                     <form action="{{ route('budgets.update', $b) }}" method="POST" class="mt-2 flex gap-2 flex-wrap">
                         @csrf @method('PUT')
-                        <input type="number" name="limit_amount" value="{{ $b->limit_amount }}" class="input-field text-sm py-1.5 w-40" min="1000" step="10000">
+                        <input type="number" name="limit_amount" value="{{ $b->limit_amount }}" class="input-field text-sm py-1.5 w-40" min="1000" step="1">
                         <input type="text" name="notes" value="{{ $b->notes }}" class="input-field text-sm py-1.5 flex-1" placeholder="Catatan...">
                         <button type="submit" class="btn-primary text-xs">Simpan</button>
                     </form>
@@ -110,7 +110,7 @@
                 </div>
                 <div class="form-group">
                     <label class="input-label">Batas Pengeluaran (Rp)</label>
-                    <input type="number" name="limit_amount" class="input-field" min="1000" step="10000" placeholder="500000" required>
+                    <input type="number" name="limit_amount" class="input-field" min="1000" step="1" placeholder="500000" required>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div class="form-group">

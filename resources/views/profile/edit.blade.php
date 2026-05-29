@@ -220,7 +220,7 @@
                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 text-sm">Rp</span>
                         <input type="number" name="big_transaction_threshold"
                                value="{{ old('big_transaction_threshold', (int)$user->big_transaction_threshold) }}"
-                               class="input-field py-1.5 text-sm pl-8" min="10000" step="10000">
+                               class="input-field py-1.5 text-sm pl-8" min="10000" step="1">
                     </div>
                 </div>
             </div>

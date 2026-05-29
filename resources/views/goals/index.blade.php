@@ -30,11 +30,11 @@
             </div>
             <div class="form-group">
                 <label class="input-label">Target Nominal (Rp) *</label>
-                <input type="number" name="target_amount" value="{{ old('target_amount') }}" class="input-field" min="1000" step="100000" required>
+                <input type="number" name="target_amount" value="{{ old('target_amount') }}" class="input-field" min="1000" step="1" required>
             </div>
             <div class="form-group">
                 <label class="input-label">Dana Awal (Rp)</label>
-                <input type="number" name="current_amount" value="{{ old('current_amount', 0) }}" class="input-field" min="0" step="1000">
+                <input type="number" name="current_amount" value="{{ old('current_amount', 0) }}" class="input-field" min="0" step="1">
             </div>
             <div class="form-group">
                 <label class="input-label">Target Tanggal</label>
@@ -146,7 +146,7 @@
             <summary class="text-sm text-primary-400 cursor-pointer hover:text-primary-300">+ Tambah Dana</summary>
             <form action="{{ route('goals.add-funds', $goal) }}" method="POST" class="mt-3 flex gap-2 flex-wrap">
                 @csrf
-                <input type="number" name="amount" class="input-field text-sm py-2 w-40" min="1000" step="10000" placeholder="Nominal (Rp)">
+                <input type="number" name="amount" class="input-field text-sm py-2 w-40" min="1" step="1" placeholder="Nominal (Rp)">
                 <select name="wallet_id" class="input-field text-sm py-2 flex-1">
                     <option value="">Tanpa debit wallet</option>
                     @foreach($wallets as $w)

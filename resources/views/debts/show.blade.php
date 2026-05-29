@@ -126,7 +126,7 @@
                 <div class="form-group">
                     <label class="input-label">Nominal Bayar (Rp) *</label>
                     <input type="number" name="amount" class="input-field" min="1" max="{{ $debt->remaining_amount }}"
-                           step="1000" placeholder="Max: Rp {{ number_format($debt->remaining_amount,0,',','.') }}" required>
+                           step="1" placeholder="Max: Rp {{ number_format($debt->remaining_amount,0,',','.') }}" required>
                 </div>
                 <div class="form-group">
                     <label class="input-label">Tanggal Bayar *</label>

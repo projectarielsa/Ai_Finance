@@ -113,7 +113,7 @@
             </div>
             <div class="form-group">
                 <label class="input-label">Nominal (Rp) *</label>
-                <input type="number" name="amount" value="{{ old('amount') }}" class="input-field" min="1000" step="1000" required>
+                <input type="number" name="amount" value="{{ old('amount') }}" class="input-field" min="1" step="1" required>
             </div>
             <div class="form-group">
                 <label class="input-label">Tanggal</label>
