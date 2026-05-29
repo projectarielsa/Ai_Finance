@@ -13,6 +13,9 @@ class LoginController extends Controller
 {
     public function showLoginForm()
     {
+        if (Auth::check()) {
+            return redirect()->route('dashboard');
+        }
         return view('auth.login');
     }
 
@@ -55,12 +58,15 @@ class LoginController extends Controller
         }
 
         // Tidak ada 2FA → login langsung
-        // Hapus semua session lama user ini (single device login)
-        DB::table('sessions')->where('user_id', $user->id)->delete();
-
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
         session(['two_factor_passed' => true]);
+
+        // Hapus semua session lama KECUALI session aktif saat ini (single device login)
+        DB::table('sessions')
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $request->session()->getId())
+            ->delete();
 
         if ($user->isAdmin()) {
             return redirect()->intended(route('admin.dashboard'));

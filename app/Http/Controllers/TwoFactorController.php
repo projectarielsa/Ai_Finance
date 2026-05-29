@@ -67,11 +67,14 @@ class TwoFactorController extends Controller
         $user->clearTwoFactorCode();
         session()->forget('two_factor_user_id');
 
-        // Hapus semua session lama user ini (single device login)
-        DB::table('sessions')->where('user_id', $user->id)->delete();
-
         Auth::login($user, session()->pull('two_factor_remember', false));
         $request->session()->regenerate();
+
+        // Hapus semua session lama KECUALI session aktif saat ini (single device login)
+        DB::table('sessions')
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $request->session()->getId())
+            ->delete();
 
         // Mark 2FA as passed for this session
         session(['two_factor_passed' => true]);
