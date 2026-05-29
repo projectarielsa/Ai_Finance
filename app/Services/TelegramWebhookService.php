@@ -491,7 +491,7 @@ class TelegramWebhookService
         Log::info('TG handlePhoto: calling processReceipt', ['path' => $path]);
 
         try {
-            $result = $this->receiptScanner->processReceipt($path, $user, null);
+            $result = $this->receiptScanner->processReceipt($path, $user, null); // pass null to avoid FK issue
         } catch (\Throwable $e) {
             Log::error('TG handlePhoto: processReceipt exception', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             $this->telegram->sendMessage($chatId, "❌ Gagal memproses struk: " . $e->getMessage());
@@ -504,13 +504,6 @@ class TelegramWebhookService
             'has_scan'     => isset($result['receipt_scan']),
             'message'      => substr($result['message'] ?? '', 0, 100),
         ]);
-
-        // Auto-wallet matched → langsung tercatat, tampilkan dengan tombol Undo
-        if (($result['success'] ?? false) && empty($result['needs_wallet']) && isset($result['transaction'])) {
-            $this->sendMessageWithUndo($chatId, $result['message'], $result['transaction']->id);
-            $msgRecord->update(['transaction_id' => $result['transaction']->id]);
-            return;
-        }
 
         // If needs wallet confirmation → send inline keyboard with wallet choices
         if (!empty($result['needs_wallet']) && isset($result['receipt_scan'])) {
@@ -538,14 +531,7 @@ class TelegramWebhookService
         $msgRecord->update(['media_path' => $path]);
         $result = $this->receiptScanner->processReceipt($path, $user, $msgRecord->id);
 
-        // Auto-wallet matched → langsung tercatat, tampilkan dengan tombol Undo
-        if (($result['success'] ?? false) && empty($result['needs_wallet']) && isset($result['transaction'])) {
-            $this->sendMessageWithUndo($chatId, $result['message'], $result['transaction']->id);
-            $msgRecord->update(['transaction_id' => $result['transaction']->id]);
-            return;
-        }
-
-        // Show wallet keyboard if needed
+        // Same as photo — show wallet keyboard if needed
         if (!empty($result['needs_wallet']) && isset($result['receipt_scan'])) {
             $this->sendWalletKeyboard($chatId, $user, $result['receipt_scan']->id, $result['message']);
             return;
