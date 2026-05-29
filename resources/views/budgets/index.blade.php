@@ -38,7 +38,12 @@
             <div class="glass-card p-5">
                 <div class="flex items-start justify-between mb-3">
                     <div>
-                        <p class="text-white font-semibold">{{ $b->category?->name ?? 'Semua Kategori' }}</p>
+                        <p class="text-white font-semibold">
+                            {{ $b->category?->name ?? 'Semua Kategori' }}
+                            @if($b->is_recurring)
+                                <span class="ml-1 text-xs text-primary-400 font-normal">🔁 Setiap bulan</span>
+                            @endif
+                        </p>
                         <p class="text-dark-400 text-xs mt-0.5">
                             Rp{{ number_format($b->spent,0,',','.') }} / Rp{{ number_format($b->limit_amount,0,',','.') }}
                         </p>
@@ -137,6 +142,10 @@
                     <input type="text" name="notes" class="input-field" placeholder="Contoh: batas makan siang">
                 </div>
                 <div class="space-y-2">
+                    <label class="flex items-center gap-2 text-sm text-dark-200 cursor-pointer">
+                        <input type="checkbox" name="is_recurring" value="1" class="w-4 h-4 rounded border-dark-600 bg-dark-800 text-primary-500">
+                        <span>🔁 Berlaku setiap bulan (auto-reset awal bulan)</span>
+                    </label>
                     <label class="flex items-center gap-2 text-sm text-dark-200 cursor-pointer">
                         <input type="checkbox" name="alert_at_80" value="1" checked class="w-4 h-4 rounded border-dark-600 bg-dark-800 text-primary-500">
                         <span>Notif Telegram di 80%</span>

@@ -12,6 +12,7 @@ class Budget extends Model
     protected $fillable = [
         'user_id', 'category_id', 'limit_amount', 'month', 'year',
         'alert_at_80', 'alert_at_100', 'alert_sent_80', 'alert_sent_100', 'notes',
+        'is_recurring',
     ];
 
     protected function casts(): array
@@ -22,6 +23,7 @@ class Budget extends Model
             'alert_at_100'   => 'boolean',
             'alert_sent_80'  => 'boolean',
             'alert_sent_100' => 'boolean',
+            'is_recurring'   => 'boolean',
         ];
     }
 
@@ -31,12 +33,16 @@ class Budget extends Model
     /** Berapa yang sudah dipakai bulan ini */
     public function getSpentAttribute(): float
     {
+        // Untuk recurring budget, hitung berdasarkan bulan yang diminta (bukan bulan di record)
+        $month = $this->is_recurring ? now()->month : $this->month;
+        $year  = $this->is_recurring ? now()->year : $this->year;
+
         return (float) Transaction::where('user_id', $this->user_id)
             ->where('category_id', $this->category_id)
             ->where('type', 'expense')
             ->where('status', 'completed')
-            ->whereYear('transaction_date', $this->year)
-            ->whereMonth('transaction_date', $this->month)
+            ->whereYear('transaction_date', $year)
+            ->whereMonth('transaction_date', $month)
             ->sum('amount');
     }
 
@@ -55,6 +61,13 @@ class Budget extends Model
 
     public function scopeForMonth($q, int $year, int $month)
     {
-        return $q->where('year', $year)->where('month', $month);
+        return $q->where(function ($query) use ($year, $month) {
+            // Budget spesifik bulan ini
+            $query->where(function ($q2) use ($year, $month) {
+                $q2->where('year', $year)->where('month', $month);
+            })
+            // ATAU budget recurring (berlaku setiap bulan)
+            ->orWhere('is_recurring', true);
+        });
     }
 }

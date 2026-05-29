@@ -44,7 +44,10 @@ class BudgetController extends Controller
             'alert_at_80'  => 'nullable|boolean',
             'alert_at_100' => 'nullable|boolean',
             'notes'        => 'nullable|string|max:255',
+            'is_recurring' => 'nullable|boolean',
         ]);
+
+        $isRecurring = $request->boolean('is_recurring');
 
         Budget::updateOrCreate(
             [
@@ -60,6 +63,7 @@ class BudgetController extends Controller
                 'alert_sent_80'  => false,
                 'alert_sent_100' => false,
                 'notes'          => $data['notes'] ?? null,
+                'is_recurring'   => $isRecurring,
             ]
         );
 
