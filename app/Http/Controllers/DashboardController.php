@@ -103,11 +103,17 @@ class DashboardController extends Controller
         );
 
         // SMART FINANCE AI
-        $financeAI = $this->financeAI->dashboard($user);
-
-        $healthScore = $financeAI['healthScore'];
-        $prediction  = $financeAI['prediction'];
-        $smartInsight = $financeAI['insight'];
+        try {
+            $financeAI = $this->financeAI->dashboard($user);
+            $healthScore  = $financeAI['healthScore'];
+            $prediction   = $financeAI['prediction'];
+            $smartInsight = $financeAI['insight'];
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Dashboard financeAI error: ' . $e->getMessage());
+            $healthScore  = ['score' => 0, 'status' => 'Unknown', 'emoji' => '⚠️'];
+            $prediction   = ['predicted_balance' => 0, 'daily_average_expense' => 0, 'message' => 'Data tidak tersedia saat ini.'];
+            $smartInsight = 'Insight AI sedang tidak tersedia.';
+        }
 
         // Budgets
         $budgets = Budget::where('user_id', $user->id)
