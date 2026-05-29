@@ -149,7 +149,7 @@ class TransactionParserService
                     'amount'           => $amount,
                     'description'      => $parsed['description'] ?? $message,
                     'merchant'         => $parsed['merchant'] ?? null,
-                    'transaction_date' => now(),
+                    'transaction_date' => $this->resolveTransactionDate($parsed),
                     'source'           => $source,
                     'ai_confidence'    => $parsed['confidence'] ?? null,
                     'ai_raw_response'  => json_encode($parsed),
@@ -337,7 +337,7 @@ class TransactionParserService
                     'amount'           => $amount,
                     'description'      => $parsed['description'] ?? $message,
                     'merchant'         => $parsed['merchant'] ?? null,
-                    'transaction_date' => now(),
+                    'transaction_date' => $this->resolveTransactionDate($parsed),
                     'source'           => $source,
                     'ai_confidence'    => $parsed['confidence'] ?? null,
                     'ai_raw_response'  => json_encode($parsed),
@@ -437,6 +437,39 @@ class TransactionParserService
         return $wallets->first(fn ($w) => str_contains(strtolower($w->provider ?? ''), $name));
     }
 
+    /**
+     * Resolve transaction date/time from AI parsed data.
+     * If AI detected a specific date, use it. Otherwise default to now().
+     */
+    protected function resolveTransactionDate(array $parsed): string
+    {
+        $date = $parsed['transaction_date'] ?? null;
+        $time = $parsed['transaction_time'] ?? null;
+
+        // No date detected → use current datetime
+        if (empty($date)) {
+            return now()->toDateTimeString();
+        }
+
+        // Validate date format
+        $timestamp = strtotime($date);
+        if ($timestamp === false) {
+            return now()->toDateTimeString();
+        }
+
+        // Combine date + time if available
+        if ($time && preg_match('/^\d{1,2}[:.]\d{2}$/', $time)) {
+            $time = str_replace('.', ':', $time);
+            $dateTime = date('Y-m-d', $timestamp) . ' ' . $time . ':00';
+            if (strtotime($dateTime) !== false) {
+                return $dateTime;
+            }
+        }
+
+        // Date only → use current time of day
+        return date('Y-m-d', $timestamp) . ' ' . now()->format('H:i:s');
+    }
+
     protected function findCategory(string $name, $categories, string $type): ?Category
     {
         if (empty(trim($name))) {
@@ -455,11 +488,17 @@ class TransactionParserService
     {
         $amount = 'Rp' . number_format($t->amount, 0, ',', '.');
         $date   = $t->transaction_date->format('d M Y');
+        $time   = $t->transaction_date->format('H:i');
+
+        // Tampilkan tanggal + jam jika bukan hari ini
+        $dateDisplay = $t->transaction_date->isToday()
+            ? "Hari ini, {$time}"
+            : "{$date} {$time}";
 
         $dupWarning = $t->is_duplicate ? "\n\n⚠️ _Terdeteksi sebagai kemungkinan duplikat. Cek di web jika perlu dihapus._" : '';
 
         if ($t->type === 'transfer') {
-            return "🔄 *Transfer berhasil dicatat!*\nDari: {$wallet->name}\nKe: {$targetWallet?->name}\nJumlah: {$amount}\nTanggal: {$date}{$dupWarning}";
+            return "🔄 *Transfer berhasil dicatat!*\nDari: {$wallet->name}\nKe: {$targetWallet?->name}\nJumlah: {$amount}\nTanggal: {$dateDisplay}{$dupWarning}";
         }
 
         $icon     = $t->type === 'income' ? '💰' : '💸';
@@ -468,7 +507,7 @@ class TransactionParserService
         if ($category) $msg .= "\nKategori: {$category->name}";
         if ($t->description) $msg .= "\nDeskripsi: {$t->description}";
         if ($t->merchant)    $msg .= "\nMerchant: {$t->merchant}";
-        $msg .= "\nTanggal: {$date}";
+        $msg .= "\nTanggal: {$dateDisplay}";
         $msg .= $dupWarning;
 
         return $msg;
