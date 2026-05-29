@@ -140,7 +140,30 @@
     @if($user->telegram_id)
     <div class="glass-card p-6">
         <h3 class="text-white font-semibold mb-1">🔔 Pengaturan Reminder</h3>
-        <p class="text-dark-400 text-xs mb-5">Notifikasi otomatis via Telegram Bot</p>
+        <p class="text-dark-400 text-xs mb-4">Notifikasi otomatis via Telegram Bot</p>
+
+        {{-- Status Notifikasi --}}
+        @if(!$user->telegram_notifications)
+        <div class="p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 mb-5">
+            <div class="flex items-start gap-3">
+                <span class="text-yellow-400 text-lg">⚠️</span>
+                <div>
+                    <p class="text-yellow-300 text-sm font-medium">Notifikasi Telegram nonaktif</p>
+                    <p class="text-dark-400 text-xs mt-0.5">Aktifkan "Notifikasi Telegram" di bagian Informasi Profil agar semua reminder berfungsi.</p>
+                </div>
+            </div>
+        </div>
+        @else
+        <div class="p-3 rounded-xl bg-green-500/10 border border-green-500/20 mb-5">
+            <div class="flex items-center gap-3">
+                <span class="text-green-400 text-lg">✅</span>
+                <div>
+                    <p class="text-green-300 text-sm font-medium">Notifikasi Telegram aktif</p>
+                    <p class="text-dark-400 text-xs mt-0.5">Semua reminder di bawah akan dikirim via Telegram Bot.</p>
+                </div>
+            </div>
+        </div>
+        @endif
 
         <form method="POST" action="{{ route('profile.update') }}" class="space-y-5">
             @csrf @method('PUT')
@@ -148,6 +171,7 @@
             <input type="hidden" name="email" value="{{ $user->email }}">
 
             {{-- Reminder Harian --}}
+            <fieldset {{ !$user->telegram_notifications ? 'disabled' : '' }} class="{{ !$user->telegram_notifications ? 'opacity-50 pointer-events-none' : '' }}">
             <div class="p-4 rounded-xl bg-dark-800/40 border border-dark-600/30 space-y-3">
                 <div class="flex items-start justify-between gap-4">
                     <div class="flex-1">
@@ -177,7 +201,7 @@
             </div>
 
             {{-- Summary Mingguan --}}
-            <div class="p-4 rounded-xl bg-dark-800/40 border border-dark-600/30">
+            <div class="p-4 rounded-xl bg-dark-800/40 border border-dark-600/30 mt-5">
                 <div class="flex items-start justify-between gap-4">
                     <div class="flex-1">
                         <p class="text-white text-sm font-medium">📅 Summary Mingguan</p>
@@ -196,7 +220,7 @@
             </div>
 
             {{-- Alert Transaksi Besar --}}
-            <div class="p-4 rounded-xl bg-dark-800/40 border border-dark-600/30 space-y-3">
+            <div class="p-4 rounded-xl bg-dark-800/40 border border-dark-600/30 space-y-3 mt-5">
                 <div class="flex items-start justify-between gap-4">
                     <div class="flex-1">
                         <p class="text-white text-sm font-medium">⚠️ Alert Transaksi Besar</p>
@@ -222,6 +246,7 @@
                     </div>
                 </div>
             </div>
+            </fieldset>
 
             <button type="submit" class="btn-primary w-full justify-center">Simpan Pengaturan Reminder</button>
         </form>
