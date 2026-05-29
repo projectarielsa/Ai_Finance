@@ -362,6 +362,23 @@ PROMPT;
     }
 
     /**
+     * Simple chat method — send a prompt and get a text response.
+     */
+    public function chat(string $prompt): string
+    {
+        try {
+            $response = $this->callApi([
+                ['role' => 'user', 'content' => $prompt],
+            ], useVision: false);
+
+            return trim($response['choices'][0]['message']['content'] ?? '');
+        } catch (\Throwable $e) {
+            Log::error('AI chat (simple) error: ' . $e->getMessage());
+            return '';
+        }
+    }
+
+    /**
      * Test API connection.
      */
     public function testConnection(): array

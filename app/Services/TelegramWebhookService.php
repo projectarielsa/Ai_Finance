@@ -93,6 +93,19 @@ class TelegramWebhookService
                 'update' => $update,
                 'trace'  => $e->getTraceAsString(),
             ]);
+
+            // Try to send error message to user so they know something went wrong
+            try {
+                $chatId = $update['message']['chat']['id']
+                    ?? $update['edited_message']['chat']['id']
+                    ?? $update['callback_query']['message']['chat']['id']
+                    ?? null;
+                if ($chatId) {
+                    $this->telegram->sendMessage($chatId, "⚠️ Maaf, terjadi kesalahan saat memproses pesan kamu. Coba lagi nanti ya.");
+                }
+            } catch (\Throwable $ignored) {
+                // Silently ignore — avoid infinite error loops
+            }
         }
     }
 
@@ -129,7 +142,12 @@ class TelegramWebhookService
         }
 
         // ── 4. Coba parse sebagai transaksi keuangan ──────────────────────
-        $result = $this->transactionParser->parseAndSave($text, $user, null, 'telegram_text');
+        try {
+            $result = $this->transactionParser->parseAndSave($text, $user, null, 'telegram_text');
+        } catch (\Throwable $e) {
+            Log::error('TG handleText: parseAndSave error', ['error' => $e->getMessage()]);
+            $result = ['success' => false, 'needs_confirmation' => false, 'balance_error' => false];
+        }
 
         if ($result['success']) {
             // Send success message with Undo button
@@ -160,8 +178,13 @@ class TelegramWebhookService
         // ── 5. Fallback: jawab via AI chat (bukan error) ──────────────────
         // Pesan apapun yang tidak dikenali sebagai transaksi → tanya AI
         // Ini membuat bot responsif terhadap segala bentuk pertanyaan natural
-        $context = $this->buildUserContext($user);
-        $reply   = $this->grokAI->answerFinancialQuestion($text, $user, $context);
+        try {
+            $context = $this->buildUserContext($user);
+            $reply   = $this->grokAI->answerFinancialQuestion($text, $user, $context);
+        } catch (\Throwable $e) {
+            Log::error('TG handleText: AI fallback error', ['error' => $e->getMessage()]);
+            $reply = "⚠️ Maaf, layanan AI sedang tidak tersedia. Coba lagi nanti ya.\n\nKamu tetap bisa catat transaksi seperti biasa, contoh:\n💬 _beli kopi 25rb gopay_";
+        }
         $this->telegram->sendMessage($chatId, $reply);
     }
 
