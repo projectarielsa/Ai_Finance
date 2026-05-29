@@ -19,8 +19,11 @@ class CheckBudgetAlerts implements ShouldQueue
     public function handle(TelegramBotService $telegram): void
     {
         $now     = now();
-        $budgets = Budget::where('year', $now->year)
-            ->where('month', $now->month)
+        $budgets = Budget::where(function ($q) use ($now) {
+                // Budget spesifik bulan ini
+                $q->where('year', $now->year)->where('month', $now->month);
+            })
+            ->orWhere('is_recurring', true) // Budget recurring berlaku setiap bulan
             ->with(['user', 'category'])
             ->get();
 
