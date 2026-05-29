@@ -54,10 +54,8 @@ class ReceiptScannerService
             $timeStr = $scanned['receipt_time'] ?? null;
 
             if ($timeStr) {
-                // Combine date + time: "2024-01-15" + "14:30" → "2024-01-15 14:30:00"
                 $receiptDateTime = date('Y-m-d H:i:s', strtotime("{$dateStr} {$timeStr}"));
             } else {
-                // Only date available, use current time
                 $receiptDateTime = date('Y-m-d H:i:s', strtotime("{$dateStr} " . now()->format('H:i:s')));
             }
         }
@@ -76,7 +74,7 @@ class ReceiptScannerService
             'confidence_score'          => $scanned['confidence'] ?? 0,
             'ai_raw_response'           => json_encode($scanned),
             'status'                    => 'processed',
-            'needs_wallet_confirmation' => empty($scanned['detected_wallet']),
+            'needs_wallet_confirmation' => true,
         ]);
 
         // AI error or no amount detected
@@ -91,16 +89,13 @@ class ReceiptScannerService
             ];
         }
 
-        $amount    = (float) $scanned['total_amount'];
-        $amountFmt = number_format($amount, 0, ',', '.');
-        $merchant  = $scanned['merchant_name'] ?? null;
-        $category  = $scanned['category'] ?? 'Belanja';
+        $amount       = (float) $scanned['total_amount'];
+        $amountFmt    = number_format($amount, 0, ',', '.');
+        $merchant     = $scanned['merchant_name'] ?? null;
+        $category     = $scanned['category'] ?? 'Belanja';
+        $paymentMethod = $scanned['payment_method'] ?? $scanned['detected_wallet'] ?? null;
 
-        // ── SELALU tampilkan keyboard pilih wallet ─────────────────────────
-        // Apapun kondisinya (wallet terdeteksi atau tidak), kita selalu
-        // minta user konfirmasi via tombol. Ini mencegah salah wallet.
-        $receiptScan->update(['needs_wallet_confirmation' => true]);
-
+        // ── Build message info ─────────────────────────────────────────────
         $merchantText = $merchant ? "\nMerchant: *{$merchant}*" : '';
         $dateText     = '';
         if (!empty($scanned['receipt_date'])) {
@@ -109,7 +104,46 @@ class ReceiptScannerService
                 $dateText .= " " . $scanned['receipt_time'];
             }
         }
+        $paymentText = $paymentMethod ? "\nPembayaran: *{$paymentMethod}*" : '';
 
+        // ── Auto-match wallet jika payment method terdeteksi ───────────────
+        $wallets      = $user->wallets()->where('is_active', true)->get();
+        $matchedWallet = null;
+
+        if ($paymentMethod) {
+            $matchedWallet = $this->findWallet($paymentMethod, $wallets);
+        }
+
+        // Jika wallet cocok DAN saldo cukup → langsung catat tanpa konfirmasi
+        if ($matchedWallet && $matchedWallet->hasSufficientBalance($amount)) {
+            $transaction = $this->createTransactionFromScan($scanned, $user, $matchedWallet, $receiptScan);
+
+            if ($transaction) {
+                $receiptScan->update(['needs_wallet_confirmation' => false]);
+
+                $date = $receiptScan->receipt_date
+                    ? date('d M Y H:i', strtotime($receiptScan->receipt_date))
+                    : now()->format('d M Y H:i');
+
+                return [
+                    'success'      => true,
+                    'needs_wallet' => false,
+                    'receipt_scan' => $receiptScan,
+                    'transaction'  => $transaction,
+                    'amount'       => $amount,
+                    'message'      => "✅ *Struk berhasil dibaca & dicatat!*" .
+                                      $merchantText .
+                                      "\nTotal: *Rp{$amountFmt}*" .
+                                      "\nKategori: {$category}" .
+                                      $paymentText .
+                                      "\nWallet: *{$matchedWallet->name}*" .
+                                      $dateText .
+                                      "\n\n_Transaksi otomatis dicatat karena metode pembayaran terdeteksi_ ✨",
+                ];
+            }
+        }
+
+        // ── Wallet tidak cocok / saldo kurang → minta pilih manual ─────────
         return [
             'success'      => true,
             'needs_wallet' => true,
@@ -119,8 +153,9 @@ class ReceiptScannerService
                               $merchantText .
                               "\nTotal: *Rp{$amountFmt}*" .
                               "\nKategori: {$category}" .
+                              $paymentText .
                               $dateText .
-                              "\n\n💳 *Pembayaran menggunakan wallet apa?*",
+                              "\n\n💳 *Pilih wallet untuk mencatat transaksi:*",
         ];
     }
 

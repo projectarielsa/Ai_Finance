@@ -124,6 +124,13 @@ Kamu adalah AI scanner struk belanja. Analisa gambar struk/nota berikut dan kemb
 
 PENTING: Perhatikan jam/waktu transaksi yang tertera di struk. Biasanya ada di dekat tanggal atau di bagian header/footer struk.
 
+PENTING: Deteksi METODE PEMBAYARAN yang digunakan. Perhatikan informasi berikut di struk:
+- Logo atau tulisan: GoPay, OVO, Dana, ShopeePay, LinkAja, QRIS, BCA, BRI, Mandiri, BNI, Debit, Credit Card, Tunai/Cash
+- Baris "Payment", "Pembayaran", "Paid by", "Metode", "Type"
+- Informasi kartu: **** 1234, Visa, Mastercard, Debit BCA, dll
+- Jika ada tulisan "QRIS" → cek apakah ada nama e-wallet spesifik (GoPay, OVO, dll)
+- Jika tidak ada info pembayaran sama sekali → isi null
+
 Response format:
 {
   "merchant_name": "nama toko/merchant",
@@ -132,7 +139,8 @@ Response format:
   "receipt_time": "HH:MM atau null (format 24 jam, contoh: 14:30, 09:15)",
   "items": [{"name": "item", "qty": 1, "price": 0}],
   "category": "kategori yang sesuai (makanan/transport/belanja_harian/dll)",
-  "detected_wallet": "nama wallet jika terlihat di struk (misalnya dari logo, atau null)",
+  "payment_method": "metode pembayaran yang terdeteksi (GoPay/OVO/Dana/BCA/Cash/dll) atau null jika tidak terlihat",
+  "detected_wallet": "nama wallet/e-wallet jika terlihat di struk (sama dengan payment_method, atau null)",
   "confidence": 0-100,
   "error": null
 }
@@ -140,6 +148,7 @@ Response format:
 Catatan:
 - receipt_date: tanggal transaksi dalam format YYYY-MM-DD
 - receipt_time: jam/waktu transaksi dalam format HH:MM (24 jam). Cari di struk biasanya tertulis seperti "14:30", "09:15:22", "Jam: 10.30", "Time: 14:30", dll. Jika tidak ada waktu yang terlihat, isi null.
+- payment_method: metode pembayaran SPESIFIK. Contoh: "GoPay", "OVO", "Dana", "BCA Debit", "Cash", "QRIS via OVO". Jika tidak ada info pembayaran, isi null.
 
 Jika gambar bukan struk atau tidak terbaca, kembalikan: {"error": "alasan", "confidence": 0}
 PROMPT;
@@ -151,7 +160,7 @@ PROMPT;
                 [
                     'role' => 'user',
                     'content' => [
-                        ['type' => 'text', 'text' => 'Scan struk ini dan berikan detail transaksi dalam format JSON.'],
+                        ['type' => 'text', 'text' => 'Scan struk ini dan berikan detail transaksi dalam format JSON. Perhatikan metode pembayaran yang digunakan.'],
                         ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$imageBase64}"]],
                     ],
                 ],
