@@ -39,6 +39,7 @@ class SendDailySummaryJob implements ShouldQueue
     {
         $tz    = $user->timezone ?? 'Asia/Jakarta';
         $today = now()->timezone($tz)->toDateString();
+        $now   = now()->timezone($tz);
 
         // Today's transactions
         $todayExpense = $user->transactions()
@@ -76,7 +77,6 @@ class SendDailySummaryJob implements ShouldQueue
             ->get();
 
         // Monthly totals so far
-        $now          = now()->timezone($tz);
         $monthExpense = $user->transactions()
             ->completed()
             ->where('type', 'expense')
@@ -99,13 +99,53 @@ class SendDailySummaryJob implements ShouldQueue
             ->where('status', 'completed')
             ->sum('amount');
 
-        // Build message
-        $dateLabel = now()->timezone($tz)->translatedFormat('l, d M Y');
+        // ── Daily average this month (for comparison) ─────────────────────
+        $daysPassed = max($now->day, 1);
+        $avgDaily   = $daysPassed > 1 ? round($monthExpense / $daysPassed) : $todayExpense;
+
+        // ── 7-day average (spending pattern) ──────────────────────────────
+        $weekAgo       = now()->timezone($tz)->subDays(7)->toDateString();
+        $last7Expense  = $user->transactions()
+            ->completed()
+            ->where('type', 'expense')
+            ->whereBetween('transaction_date', [$weekAgo, $today])
+            ->sum('amount');
+        $avg7Day = round($last7Expense / 7);
+
+        // ── Predicted end-of-month balance ────────────────────────────────
+        $totalBalance = $user->wallets()->where('is_active', true)->where('include_in_total', true)->sum('balance');
+        $daysLeft     = $now->daysInMonth - $now->day;
+        $predictedEnd = $totalBalance - ($avgDaily * $daysLeft);
+
+        // ── Budget warnings ───────────────────────────────────────────────
+        $budgetWarnings = [];
+        $budgets = \App\Models\Budget::where('user_id', $user->id)
+            ->where(function ($q) use ($now) {
+                $q->where(fn($q2) => $q2->where('year', $now->year)->where('month', $now->month))
+                  ->orWhere('is_recurring', true);
+            })
+            ->with('category')
+            ->get();
+
+        foreach ($budgets as $budget) {
+            $pct = $budget->percentage;
+            if ($pct >= 80) {
+                $budgetWarnings[] = [
+                    'name' => $budget->category?->name ?? 'Lainnya',
+                    'pct'  => $pct,
+                ];
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // BUILD MESSAGE
+        // ═══════════════════════════════════════════════════════════════════
+        $dateLabel = $now->translatedFormat('l, d M Y');
         $msg  = "🌙 *Ringkasan Harian*\n";
         $msg .= "_{$dateLabel}_\n";
         $msg .= str_repeat("─", 25) . "\n\n";
 
-        // Today's stats
+        // ── Today's stats ─────────────────────────────────────────────────
         if ($todayExpense > 0) {
             $msg .= "💸 Pengeluaran: *Rp" . number_format($todayExpense, 0, ',', '.') . "*\n";
         }
@@ -114,17 +154,29 @@ class SendDailySummaryJob implements ShouldQueue
         }
         $msg .= "📝 Total transaksi: {$todayCount}\n";
 
-        // Comparison with yesterday
+        // ── Smart comparison ──────────────────────────────────────────────
+        if ($todayExpense > 0 && $avgDaily > 0) {
+            $ratio = round(($todayExpense / $avgDaily) * 100);
+            if ($ratio > 150) {
+                $msg .= "🔴 _Hari ini {$ratio}% dari rata-rata harian — lebih boros dari biasanya!_\n";
+            } elseif ($ratio > 110) {
+                $msg .= "🟡 _Sedikit di atas rata-rata harian ({$ratio}%)_\n";
+            } elseif ($ratio < 70) {
+                $msg .= "🟢 _Hemat! Cuma {$ratio}% dari rata-rata harian_ 👏\n";
+            }
+        }
+
+        // Yesterday vs today
         if ($yesterdayExpense > 0 && $todayExpense > 0) {
             $diff = $todayExpense - $yesterdayExpense;
             if ($diff > 0) {
                 $msg .= "📈 _+" . number_format($diff, 0, ',', '.') . " dari kemarin_\n";
             } elseif ($diff < 0) {
-                $msg .= "📉 _" . number_format($diff, 0, ',', '.') . " dari kemarin_ 👍\n";
+                $msg .= "📉 _" . number_format(abs($diff), 0, ',', '.') . " lebih hemat dari kemarin_ 👍\n";
             }
         }
 
-        // Top categories
+        // ── Top categories ────────────────────────────────────────────────
         if ($topCategories->isNotEmpty()) {
             $msg .= "\n*Top Pengeluaran:*\n";
             foreach ($topCategories as $i => $t) {
@@ -133,18 +185,35 @@ class SendDailySummaryJob implements ShouldQueue
             }
         }
 
-        // Monthly progress
-        $msg .= "\n📅 *Bulan ini:*\n";
+        // ── Budget warnings ───────────────────────────────────────────────
+        if (!empty($budgetWarnings)) {
+            $msg .= "\n⚠️ *Budget hampir habis:*\n";
+            foreach ($budgetWarnings as $bw) {
+                $icon = $bw['pct'] >= 100 ? '🚨' : '⚠️';
+                $msg .= "  {$icon} {$bw['name']}: {$bw['pct']}%\n";
+            }
+        }
+
+        // ── Monthly progress ──────────────────────────────────────────────
+        $msg .= "\n📅 *Progress bulan ini:*\n";
         $msg .= "  Pengeluaran: Rp" . number_format($monthExpense, 0, ',', '.') . "\n";
         $msg .= "  Pemasukan: Rp" . number_format($monthIncome, 0, ',', '.') . "\n";
         $net = $monthIncome - $monthExpense;
         $msg .= "  Cashflow: " . ($net >= 0 ? "+" : "") . "Rp" . number_format($net, 0, ',', '.') . "\n";
 
-        // Days remaining in month
-        $daysLeft = $now->daysInMonth - $now->day;
-        if ($daysLeft > 0 && $monthExpense > 0) {
-            $avgDaily = round($monthExpense / $now->day);
-            $msg .= "\n💡 _Rata-rata harian: Rp" . number_format($avgDaily, 0, ',', '.') . "/hari_";
+        // ── Smart insights ────────────────────────────────────────────────
+        $msg .= "\n💡 *Insight:*\n";
+        $msg .= "  • Rata-rata harian: Rp" . number_format($avgDaily, 0, ',', '.') . "/hari\n";
+        if ($avg7Day > 0) {
+            $msg .= "  • Rata-rata 7 hari: Rp" . number_format($avg7Day, 0, ',', '.') . "/hari\n";
+        }
+        if ($daysLeft > 0) {
+            $msg .= "  • Sisa " . $daysLeft . " hari lagi di bulan ini\n";
+            if ($predictedEnd > 0) {
+                $msg .= "  • Prediksi saldo akhir bulan: Rp" . number_format($predictedEnd, 0, ',', '.') . "\n";
+            } else {
+                $msg .= "  • ⚠️ Saldo diprediksi *minus* sebelum akhir bulan!\n";
+            }
         }
 
         $telegram->sendMessage($user->telegram_id, $msg);

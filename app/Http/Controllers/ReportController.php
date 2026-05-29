@@ -76,8 +76,67 @@ class ReportController extends Controller
 
         $totalIncome  = $transactions->where('type', 'income')->sum('amount');
         $totalExpense = $transactions->where('type', 'expense')->sum('amount');
+        $netCashflow  = $totalIncome - $totalExpense;
 
-        $pdf = Pdf::loadView('reports.pdf', compact('transactions', 'totalIncome', 'totalExpense', 'user', 'startDate', 'endDate'));
+        // Top expense categories
+        $expenseByCategory = $transactions->where('type', 'expense')
+            ->groupBy('category_id')
+            ->map(fn($t) => [
+                'total' => $t->sum('amount'),
+                'count' => $t->count(),
+                'name'  => $t->first()->category?->name ?? 'Lainnya',
+                'pct'   => $totalExpense > 0 ? round(($t->sum('amount') / $totalExpense) * 100) : 0,
+            ])
+            ->sortByDesc('total')
+            ->take(10);
+
+        // Top income categories
+        $incomeByCategory = $transactions->where('type', 'income')
+            ->groupBy('category_id')
+            ->map(fn($t) => [
+                'total' => $t->sum('amount'),
+                'count' => $t->count(),
+                'name'  => $t->first()->category?->name ?? 'Lainnya',
+                'pct'   => $totalIncome > 0 ? round(($t->sum('amount') / $totalIncome) * 100) : 0,
+            ])
+            ->sortByDesc('total')
+            ->take(5);
+
+        // Wallet summary
+        $walletSummary = $user->wallets()->where('is_active', true)->orderBy('sort_order')->get();
+
+        // Daily spending trend
+        $dailyExpense = $transactions->where('type', 'expense')
+            ->groupBy(fn($t) => $t->transaction_date->format('d'))
+            ->map(fn($t) => $t->sum('amount'));
+
+        $avgDaily = $dailyExpense->count() > 0 ? round($dailyExpense->avg()) : 0;
+        $maxDay   = $dailyExpense->count() > 0 ? $dailyExpense->max() : 0;
+
+        // AI Insight
+        $aiInsight = null;
+        try {
+            $topCat = $expenseByCategory->first()['name'] ?? 'lainnya';
+            $aiInsight = $this->grokAI->chat(
+                "Buat ringkasan laporan keuangan singkat (maks 4 kalimat, bahasa Indonesia santai). " .
+                "Data: Pemasukan Rp" . number_format($totalIncome, 0) .
+                ", Pengeluaran Rp" . number_format($totalExpense, 0) .
+                ", Cashflow " . ($netCashflow >= 0 ? '+' : '') . "Rp" . number_format($netCashflow, 0) .
+                ", Kategori terbesar: {$topCat}" .
+                ", Rata-rata harian: Rp" . number_format($avgDaily, 0) .
+                ". Fokus ke insight dan saran singkat."
+            );
+        } catch (\Throwable $e) {
+            $aiInsight = null;
+        }
+
+        $pdf = Pdf::loadView('reports.pdf', compact(
+            'transactions', 'totalIncome', 'totalExpense', 'netCashflow',
+            'expenseByCategory', 'incomeByCategory', 'walletSummary',
+            'avgDaily', 'maxDay', 'aiInsight',
+            'user', 'startDate', 'endDate'
+        ));
+
         return $pdf->download("laporan-keuangan-{$startDate}-{$endDate}.pdf");
     }
 
