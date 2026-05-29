@@ -174,6 +174,11 @@ class TelegramWebhookService
     {
         $lower = strtolower(trim($text));
 
+        // Deteksi apakah pesan kemungkinan perintah catat transaksi
+        // Jika ya, skip fast-query keywords yang ambigu (kemarin, minggu ini, bulan lalu)
+        $hasAmount = preg_match('/\d+\s*(rb|ribu|k|jt|juta|rbu)/i', $lower) || preg_match('/\d{4,}/', $lower);
+        $isLikelyTransaction = $hasAmount || preg_match('/\b(beli|bayar|makan|jajan|transfer|kirim|terima|gaji|dapat|buat|catat|input|masuk|keluar)\b/i', $lower);
+
         // ── Cek saldo ─────────────────────────────────────────────────────
         $saldoKeywords = [
             'saldo', 'balance', 'duit', 'tabungan',
@@ -286,30 +291,35 @@ class TelegramWebhookService
         }
 
         // ── Quick stats: kemarin ──────────────────────────────────────────
+        // Hanya trigger jika memang PERTANYAAN tentang data kemarin,
+        // BUKAN perintah catat transaksi yang menyebut "kemarin"
         $kemarinKeywords = ['kemarin', 'yesterday', 'kemarin habis', 'kemarin keluar', 'kemarin berapa'];
-        foreach ($kemarinKeywords as $kw) {
-            if (str_contains($lower, $kw)) {
-                $tz        = $user->timezone ?? 'Asia/Jakarta';
-                $yesterday = now()->timezone($tz)->subDay()->toDateString();
-                $expense   = $user->transactions()->completed()
-                                 ->whereDate('transaction_date', $yesterday)
-                                 ->where('type', 'expense')->sum('amount');
-                $income    = $user->transactions()->completed()
-                                 ->whereDate('transaction_date', $yesterday)
-                                 ->where('type', 'income')->sum('amount');
-                $count     = $user->transactions()->completed()
-                                 ->whereDate('transaction_date', $yesterday)->count();
-                $dateLabel = now()->timezone($tz)->subDay()->format('d M Y');
 
-                if ($count === 0) {
-                    return "📅 *Kemarin ({$dateLabel})*\n\nTidak ada transaksi yang dicatat.";
+        if (!$isLikelyTransaction) {
+            foreach ($kemarinKeywords as $kw) {
+                if (str_contains($lower, $kw)) {
+                    $tz        = $user->timezone ?? 'Asia/Jakarta';
+                    $yesterday = now()->timezone($tz)->subDay()->toDateString();
+                    $expense   = $user->transactions()->completed()
+                                     ->whereDate('transaction_date', $yesterday)
+                                     ->where('type', 'expense')->sum('amount');
+                    $income    = $user->transactions()->completed()
+                                     ->whereDate('transaction_date', $yesterday)
+                                     ->where('type', 'income')->sum('amount');
+                    $count     = $user->transactions()->completed()
+                                     ->whereDate('transaction_date', $yesterday)->count();
+                    $dateLabel = now()->timezone($tz)->subDay()->format('d M Y');
+
+                    if ($count === 0) {
+                        return "📅 *Kemarin ({$dateLabel})*\n\nTidak ada transaksi yang dicatat.";
+                    }
+
+                    $msg  = "📅 *Kemarin ({$dateLabel})*\n\n";
+                    if ($expense > 0) $msg .= "💸 Pengeluaran: Rp" . number_format($expense, 0, ',', '.') . "\n";
+                    if ($income > 0)  $msg .= "💰 Pemasukan: Rp" . number_format($income, 0, ',', '.') . "\n";
+                    $msg .= "📝 Total transaksi: {$count}";
+                    return $msg;
                 }
-
-                $msg  = "📅 *Kemarin ({$dateLabel})*\n\n";
-                if ($expense > 0) $msg .= "💸 Pengeluaran: Rp" . number_format($expense, 0, ',', '.') . "\n";
-                if ($income > 0)  $msg .= "💰 Pemasukan: Rp" . number_format($income, 0, ',', '.') . "\n";
-                $msg .= "📝 Total transaksi: {$count}";
-                return $msg;
             }
         }
 
@@ -318,45 +328,47 @@ class TelegramWebhookService
             'minggu ini', 'this week', 'minggu ini habis', 'minggu ini keluar',
             'seminggu ini', '7 hari', '7 hari terakhir', 'sepekan',
         ];
-        foreach ($mingguKeywords as $kw) {
-            if (str_contains($lower, $kw)) {
-                $tz        = $user->timezone ?? 'Asia/Jakarta';
-                $startDate = now()->timezone($tz)->startOfWeek()->toDateString();
-                $endDate   = now()->timezone($tz)->toDateString();
+        if (!$isLikelyTransaction) {
+            foreach ($mingguKeywords as $kw) {
+                if (str_contains($lower, $kw)) {
+                    $tz        = $user->timezone ?? 'Asia/Jakarta';
+                    $startDate = now()->timezone($tz)->startOfWeek()->toDateString();
+                    $endDate   = now()->timezone($tz)->toDateString();
 
-                $expense = $user->transactions()->completed()
-                               ->whereBetween('transaction_date', [$startDate, $endDate])
-                               ->where('type', 'expense')->sum('amount');
-                $income  = $user->transactions()->completed()
-                               ->whereBetween('transaction_date', [$startDate, $endDate])
-                               ->where('type', 'income')->sum('amount');
-                $count   = $user->transactions()->completed()
-                               ->whereBetween('transaction_date', [$startDate, $endDate])->count();
+                    $expense = $user->transactions()->completed()
+                                   ->whereBetween('transaction_date', [$startDate, $endDate])
+                                   ->where('type', 'expense')->sum('amount');
+                    $income  = $user->transactions()->completed()
+                                   ->whereBetween('transaction_date', [$startDate, $endDate])
+                                   ->where('type', 'income')->sum('amount');
+                    $count   = $user->transactions()->completed()
+                                   ->whereBetween('transaction_date', [$startDate, $endDate])->count();
 
-                // Top 3 kategori minggu ini
-                $topCats = $user->transactions()->completed()
-                    ->where('type', 'expense')
-                    ->whereBetween('transaction_date', [$startDate, $endDate])
-                    ->selectRaw('category_id, SUM(amount) as total')
-                    ->groupBy('category_id')
-                    ->orderByDesc('total')
-                    ->with('category')
-                    ->limit(3)->get();
+                    // Top 3 kategori minggu ini
+                    $topCats = $user->transactions()->completed()
+                        ->where('type', 'expense')
+                        ->whereBetween('transaction_date', [$startDate, $endDate])
+                        ->selectRaw('category_id, SUM(amount) as total')
+                        ->groupBy('category_id')
+                        ->orderByDesc('total')
+                        ->with('category')
+                        ->limit(3)->get();
 
-                $msg  = "📅 *Minggu Ini*\n\n";
-                if ($expense > 0) $msg .= "💸 Pengeluaran: Rp" . number_format($expense, 0, ',', '.') . "\n";
-                if ($income > 0)  $msg .= "💰 Pemasukan: Rp" . number_format($income, 0, ',', '.') . "\n";
-                $msg .= "📝 Total transaksi: {$count}\n";
+                    $msg  = "📅 *Minggu Ini*\n\n";
+                    if ($expense > 0) $msg .= "💸 Pengeluaran: Rp" . number_format($expense, 0, ',', '.') . "\n";
+                    if ($income > 0)  $msg .= "💰 Pemasukan: Rp" . number_format($income, 0, ',', '.') . "\n";
+                    $msg .= "📝 Total transaksi: {$count}\n";
 
-                if ($topCats->isNotEmpty()) {
-                    $msg .= "\n*Top Pengeluaran:*\n";
-                    foreach ($topCats as $i => $t) {
-                        $name = $t->category?->name ?? 'Lainnya';
-                        $msg .= ($i + 1) . ". {$name}: Rp" . number_format($t->total, 0, ',', '.') . "\n";
+                    if ($topCats->isNotEmpty()) {
+                        $msg .= "\n*Top Pengeluaran:*\n";
+                        foreach ($topCats as $i => $t) {
+                            $name = $t->category?->name ?? 'Lainnya';
+                            $msg .= ($i + 1) . ". {$name}: Rp" . number_format($t->total, 0, ',', '.') . "\n";
+                        }
                     }
+                    $msg .= "\n_Ketik /rekap untuk laporan bulanan_";
+                    return $msg;
                 }
-                $msg .= "\n_Ketik /rekap untuk laporan bulanan_";
-                return $msg;
             }
         }
 
@@ -364,42 +376,44 @@ class TelegramWebhookService
         $bulanLaluKeywords = [
             'bulan lalu', 'last month', 'bulan kemarin', 'bulan sebelumnya',
         ];
-        foreach ($bulanLaluKeywords as $kw) {
-            if (str_contains($lower, $kw)) {
-                $now       = now();
-                $prevMonth = $now->copy()->subMonth();
-                $income    = $user->transactions()->completed()
-                                 ->byMonth($prevMonth->year, $prevMonth->month)->where('type', 'income')->sum('amount');
-                $expense   = $user->transactions()->completed()
-                                 ->byMonth($prevMonth->year, $prevMonth->month)->where('type', 'expense')->sum('amount');
-                $net       = $income - $expense;
+        if (!$isLikelyTransaction) {
+            foreach ($bulanLaluKeywords as $kw) {
+                if (str_contains($lower, $kw)) {
+                    $now       = now();
+                    $prevMonth = $now->copy()->subMonth();
+                    $income    = $user->transactions()->completed()
+                                     ->byMonth($prevMonth->year, $prevMonth->month)->where('type', 'income')->sum('amount');
+                    $expense   = $user->transactions()->completed()
+                                     ->byMonth($prevMonth->year, $prevMonth->month)->where('type', 'expense')->sum('amount');
+                    $net       = $income - $expense;
 
-                // Top 5 kategori bulan lalu
-                $topCats = $user->transactions()->completed()
-                    ->where('type', 'expense')
-                    ->byMonth($prevMonth->year, $prevMonth->month)
-                    ->selectRaw('category_id, SUM(amount) as total')
-                    ->groupBy('category_id')
-                    ->orderByDesc('total')
-                    ->with('category')
-                    ->limit(5)->get();
+                    // Top 5 kategori bulan lalu
+                    $topCats = $user->transactions()->completed()
+                        ->where('type', 'expense')
+                        ->byMonth($prevMonth->year, $prevMonth->month)
+                        ->selectRaw('category_id, SUM(amount) as total')
+                        ->groupBy('category_id')
+                        ->orderByDesc('total')
+                        ->with('category')
+                        ->limit(5)->get();
 
-                $label = $prevMonth->translatedFormat('F Y');
-                $msg   = "📊 *Bulan Lalu ({$label})*\n\n";
-                $msg  .= "💰 Pemasukan: Rp" . number_format($income, 0, ',', '.') . "\n";
-                $msg  .= "💸 Pengeluaran: Rp" . number_format($expense, 0, ',', '.') . "\n";
-                $msg  .= ($net >= 0 ? "📈" : "📉") . " Cashflow: " . ($net >= 0 ? "+" : "") . "Rp" . number_format($net, 0, ',', '.') . "\n";
+                    $label = $prevMonth->translatedFormat('F Y');
+                    $msg   = "📊 *Bulan Lalu ({$label})*\n\n";
+                    $msg  .= "💰 Pemasukan: Rp" . number_format($income, 0, ',', '.') . "\n";
+                    $msg  .= "💸 Pengeluaran: Rp" . number_format($expense, 0, ',', '.') . "\n";
+                    $msg  .= ($net >= 0 ? "📈" : "📉") . " Cashflow: " . ($net >= 0 ? "+" : "") . "Rp" . number_format($net, 0, ',', '.') . "\n";
 
-                if ($topCats->isNotEmpty()) {
-                    $msg .= "\n*Top Pengeluaran:*\n";
-                    foreach ($topCats as $i => $t) {
-                        $name = $t->category?->name ?? 'Lainnya';
-                        $pct  = $expense > 0 ? round($t->total / $expense * 100) : 0;
-                        $msg .= ($i + 1) . ". {$name}: Rp" . number_format($t->total, 0, ',', '.') . " ({$pct}%)\n";
+                    if ($topCats->isNotEmpty()) {
+                        $msg .= "\n*Top Pengeluaran:*\n";
+                        foreach ($topCats as $i => $t) {
+                            $name = $t->category?->name ?? 'Lainnya';
+                            $pct  = $expense > 0 ? round($t->total / $expense * 100) : 0;
+                            $msg .= ($i + 1) . ". {$name}: Rp" . number_format($t->total, 0, ',', '.') . " ({$pct}%)\n";
+                        }
                     }
+                    $msg .= "\n_Ketik /rekap untuk rekap lengkap bulan ini_";
+                    return $msg;
                 }
-                $msg .= "\n_Ketik /rekap untuk rekap lengkap bulan ini_";
-                return $msg;
             }
         }
 
