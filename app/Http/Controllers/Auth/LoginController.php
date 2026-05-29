@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\TwoFactorController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
@@ -54,6 +55,9 @@ class LoginController extends Controller
         }
 
         // Tidak ada 2FA → login langsung
+        // Hapus semua session lama user ini (single device login)
+        DB::table('sessions')->where('user_id', $user->id)->delete();
+
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
         session(['two_factor_passed' => true]);

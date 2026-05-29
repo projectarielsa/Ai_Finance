@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\TelegramBotService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class TwoFactorController extends Controller
 {
@@ -65,6 +66,9 @@ class TwoFactorController extends Controller
         // OTP valid — login user dan hapus session sementara
         $user->clearTwoFactorCode();
         session()->forget('two_factor_user_id');
+
+        // Hapus semua session lama user ini (single device login)
+        DB::table('sessions')->where('user_id', $user->id)->delete();
 
         Auth::login($user, session()->pull('two_factor_remember', false));
         $request->session()->regenerate();
