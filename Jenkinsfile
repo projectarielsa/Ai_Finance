@@ -2,26 +2,23 @@ pipeline {
     agent any
 
     stages {
-        stage('1. Deteksi Branch & Sinkronisasi') {
+        stage('1. Deteksi Jalur & Sinkronisasi') {
             steps {
                 script {
-                    // Deteksi jika branch saat ini adalah develop (Staging)
-                    if (env.BRANCH_NAME == 'develop') {
-                        echo '🌿 Branch DEVELOP dideteksi. Sinkronisasi ke /srv/apps/finance-staging...'
+                    // Cek apakah nama folder workspace mengandung kata 'staging'
+                    if (env.WORKSPACE.toLowerCase().contains('staging')) {
+                        echo '🌿 Workspace STAGING dideteksi. Sinkronisasi ke /srv/apps/finance-staging...'
                         sh '''
                             cd /srv/apps/finance-staging
                             git fetch origin
                             git checkout develop
                             git reset --hard origin/develop
                         '''
-                    } 
-                    // Deteksi jika branch saat ini adalah main (Production)
-                    else if (env.BRANCH_NAME == 'main') {
-                        echo '🚀 Branch MAIN dideteksi. Menggunakan Jenkins Workspace untuk Production...'
-                        checkout scm
-                    } 
-                    else {
-                        error "Abaikan build. Branch [${env.BRANCH_NAME}] tidak diatur untuk auto-deploy."
+                        env.DEPLOY_TARGET = 'staging'
+                    } else {
+                        echo '🚀 Workspace PRODUCTION dideteksi. Tetap di tempat...'
+                        // Di production, Jenkins otomatis sudah melakukan checkout ke workspace
+                        env.DEPLOY_TARGET = 'production'
                     }
                 }
             }
@@ -30,13 +27,13 @@ pipeline {
         stage('2. Build Container Layer') {
             steps {
                 script {
-                    if (env.BRANCH_NAME == 'develop') {
+                    if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker compose -f docker-compose.yml build --no-cache app-staging
+                            docker compose -f docker-compose.staging.yml build --no-cache app-staging
                         '''
-                    } else if (env.BRANCH_NAME == 'main') {
-                        sh "docker compose -f docker-compose.yml build --no-cache app-prod"
+                    } else {
+                        sh "docker compose -f docker-compose.prod.yml build --no-cache app-prod"
                     }
                 }
             }
@@ -45,33 +42,24 @@ pipeline {
         stage('3. Deploy & Optimasi Laravel') {
             steps {
                 script {
-                    if (env.BRANCH_NAME == 'develop') {
+                    if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker compose -f docker-compose.yml up -d
+                            docker compose -f docker-compose.staging.yml up -d
                             docker exec -t finance-staging_app php artisan migrate --force
                             docker exec -t finance-staging_app php artisan optimize
                         '''
-                        echo '✅ Selesai! Staging (finance-staging_app) berhasil diperbarui.'
-                    } else if (env.BRANCH_NAME == 'main') {
+                        echo '✅ Staging Berhasil Diperbarui!'
+                    } else {
                         sh '''
-                            docker compose -f docker-composo.yml up -d
+                            docker compose -f docker-compose.prod.yml up -d
                             docker exec -t asset_prod_app php artisan migrate --force
                             docker exec -t asset_prod_app php artisan optimize
                         '''
-                        echo '🚀 Selesai! Production (asset_prod_app) berhasil diperbarui.'
+                        echo '🚀 Production Berhasil Diperbarui!'
                     }
                 }
             }
-        }
-    }
-
-    post {
-        success {
-            echo "🎉 Pipeline berhasil mengeksekusi branch [${env.BRANCH_NAME}] dengan aman!"
-        }
-        failure {
-            echo "❌ Pipeline gagal pada branch [${env.BRANCH_NAME}]. Silakan periksa log di atas."
         }
     }
 }
