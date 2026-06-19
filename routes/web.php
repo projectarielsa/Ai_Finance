@@ -61,6 +61,13 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
+// ─── Telegram Webhook (public, no auth) ──────────────────────────────────────
+Route::post('webhook/telegram',             [TelegramController::class, 'webhook'])->name('webhook.telegram');
+Route::get('telegram/setup-webhook',        [TelegramController::class, 'setupWebhook'])->name('telegram.setup-webhook')->middleware('auth');
+Route::get('telegram/delete-webhook',       [TelegramController::class, 'deleteWebhook'])->name('telegram.delete-webhook')->middleware('auth');
+Route::get('telegram/webhook-info',         [TelegramController::class, 'webhookInfo'])->name('telegram.webhook-info')->middleware('auth');
+Route::get('telegram/test',                 [TelegramController::class, 'testConnection'])->name('telegram.test')->middleware('auth');
+
 // ─── Authenticated Routes ─────────────────────────────────────────────────────
 Route::middleware(['auth', 'two_factor'])->group(function () {
 

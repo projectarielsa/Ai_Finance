@@ -11,6 +11,7 @@ Artisan::command('inspire', function () {
 // ── Monthly reports — tanggal 1 jam 08:00 ─────────────────────────────────────
 Schedule::command('finance:send-monthly-reports')->monthlyOn(1, '08:00');
 
+<<<<<<< Updated upstream
 // ── Reset recurring budget alerts — tanggal 1 jam 00:05 ──────────────────────
 Schedule::call(function () {
     \App\Models\Budget::where('is_recurring', true)->update([
@@ -48,6 +49,13 @@ Schedule::call(function () {
         ->where('telegram_notifications', true)
         ->whereNotNull('telegram_id')
         ->where('minimum_balance_warning', '>', 0)
+=======
+// Check minimum balance daily at 09:00 - send Telegram notification
+Schedule::call(function () {
+    \App\Models\User::where('is_active', true)
+        ->where('whatsapp_notifications', true)
+        ->whereNotNull('telegram_id')
+>>>>>>> Stashed changes
         ->each(function ($user) {
             $lowBalanceWallets = $user->wallets()
                 ->where('is_active', true)

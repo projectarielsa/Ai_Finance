@@ -180,7 +180,11 @@ PROMPT;
         } catch (\Throwable $e) {
             $duration = (int)((microtime(true) - $startTime) * 1000);
             $this->logRequest($user->id, 'receipt_scan', 'image_input', null,
+<<<<<<< Updated upstream
                 [], $duration, false, $e->getMessage(), $this->visionModel);
+=======
+                [], $duration, false, $e->getMessage());
+>>>>>>> Stashed changes
             Log::error('AI scanReceipt error: ' . $e->getMessage());
             return ['error' => 'Receipt scan failed', 'confidence' => 0];
         }
@@ -191,9 +195,11 @@ PROMPT;
      */
     public function transcribeAudio(string $audioBase64, string $mimeType, User $user): array
     {
+<<<<<<< Updated upstream
+=======
         $startTime = microtime(true);
-        $tempFile  = null; // inisialisasi di sini agar selalu terdefinisi di catch block
         try {
+            // Groq supports Whisper for audio transcription via /audio/transcriptions
             $audioContent = base64_decode($audioBase64);
             $tempFile     = tempnam(sys_get_temp_dir(), 'voice_') . '.ogg';
             file_put_contents($tempFile, $audioContent);
@@ -206,6 +212,61 @@ PROMPT;
                 'model'    => 'whisper-large-v3',
                 'language' => 'id',
             ]);
+
+            @unlink($tempFile);
+
+            if (!$response->successful()) {
+                // Fallback: Use text model to "transcribe" via vision
+                return $this->transcribeViaVision($audioBase64, $mimeType, $user);
+            }
+
+            $duration      = (int)((microtime(true) - $startTime) * 1000);
+            $transcription = trim($response->json('text', ''));
+
+            $this->logRequest($user->id, 'voice_transcription', 'audio_input', $transcription,
+                [], $duration, true);
+
+            return ['transcription' => $transcription, 'success' => !empty($transcription)];
+        } catch (\Throwable $e) {
+            // Fallback to vision model
+            return $this->transcribeViaVision($audioBase64, $mimeType, $user);
+        }
+    }
+
+    /**
+     * Fallback transcription via vision model (for providers that don't support Whisper).
+     */
+    protected function transcribeViaVision(string $audioBase64, string $mimeType, User $user): array
+    {
+>>>>>>> Stashed changes
+        $startTime = microtime(true);
+        $tempFile  = null; // inisialisasi di sini agar selalu terdefinisi di catch block
+        try {
+<<<<<<< Updated upstream
+            $audioContent = base64_decode($audioBase64);
+            $tempFile     = tempnam(sys_get_temp_dir(), 'voice_') . '.ogg';
+            file_put_contents($tempFile, $audioContent);
+
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$this->apiKey}",
+            ])->timeout(60)->attach(
+                'file', file_get_contents($tempFile), basename($tempFile)
+            )->post("{$this->baseUrl}/audio/transcriptions", [
+                'model'    => 'whisper-large-v3',
+                'language' => 'id',
+            ]);
+=======
+            $response = $this->callApi([
+                ['role' => 'system', 'content' => 'Kamu adalah AI transcriber. Ubah audio berikut menjadi teks bahasa Indonesia yang akurat. Kembalikan hanya teks transkrip tanpa format tambahan.'],
+                [
+                    'role' => 'user',
+                    'content' => [
+                        ['type' => 'text', 'text' => 'Transcribe audio ini ke teks bahasa Indonesia:'],
+                        ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$audioBase64}"]],
+                    ],
+                ],
+            ], useVision: true);
+>>>>>>> Stashed changes
 
             @unlink($tempFile);
 
@@ -303,6 +364,7 @@ WAJIB:
 - cukup insight inti saja
 PROMPT;
 
+<<<<<<< Updated upstream
     try {
 
         $response = $this->callApi([
@@ -326,6 +388,18 @@ PROMPT;
         \Log::error('AI insight error: ' . $e->getMessage());
 
         return 'Cashflow bulan ini masih cukup sehat dan pengeluaran tetap terkendali.';
+=======
+        try {
+            $response = $this->callApi([
+                ['role' => 'system', 'content' => 'Kamu adalah analis keuangan pribadi yang ramah dan profesional.'],
+                ['role' => 'user', 'content' => $prompt],
+            ], useVision: false);
+            return trim($response['choices'][0]['message']['content'] ?? 'Tidak ada data insight.');
+        } catch (\Throwable $e) {
+            Log::error('AI insight error: ' . $e->getMessage());
+            return 'Insight keuangan tidak tersedia saat ini.';
+        }
+>>>>>>> Stashed changes
     }
 }
 
@@ -360,10 +434,15 @@ PROMPT;
                 ['role' => 'system', 'content' => $systemPrompt],
                 ['role' => 'user', 'content' => $question],
             ], useVision: false);
+<<<<<<< Updated upstream
 
             $answer = trim($response['choices'][0]['message']['content'] ?? 'Maaf, saya tidak bisa menjawab pertanyaan itu.');
 
             $this->logRequest($user->id, 'chat', $question, $answer,
+=======
+            $this->logRequest($user->id, 'chat', $question,
+                $response['choices'][0]['message']['content'] ?? '',
+>>>>>>> Stashed changes
                 $response['usage'] ?? [], 0, true);
 
             return $answer;
@@ -457,7 +536,11 @@ PROMPT;
         AiLog::create([
             'user_id'           => $userId,
             'provider'          => $this->provider,
+<<<<<<< Updated upstream
             'model'             => $modelOverride ?? $this->model,
+=======
+            'model'             => $this->model,
+>>>>>>> Stashed changes
             'type'              => $type,
             'prompt'            => substr($prompt, 0, 2000),
             'response'          => $response ? substr($response, 0, 4000) : null,

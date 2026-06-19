@@ -18,6 +18,10 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(AppSettingService::class);
         $this->app->singleton(GrokAIService::class);
+<<<<<<< Updated upstream
+=======
+        $this->app->singleton(WhatsAppService::class);
+>>>>>>> Stashed changes
         $this->app->singleton(TelegramBotService::class);
 
         $this->app->bind(TransactionParserService::class, function ($app) {
@@ -36,6 +40,16 @@ class AppServiceProvider extends ServiceProvider
             return new VoiceNoteTranscriptionService(
                 $app->make(GrokAIService::class),
                 $app->make(TransactionParserService::class)
+            );
+        });
+
+        $this->app->bind(TelegramWebhookService::class, function ($app) {
+            return new TelegramWebhookService(
+                $app->make(TelegramBotService::class),
+                $app->make(TransactionParserService::class),
+                $app->make(ReceiptScannerService::class),
+                $app->make(VoiceNoteTranscriptionService::class),
+                $app->make(GrokAIService::class)
             );
         });
 

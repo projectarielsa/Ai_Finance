@@ -21,6 +21,15 @@ class AppSettingService
     public function getAiProvider(): string
     {
         return config('services.ai.provider', 'groq');
+<<<<<<< Updated upstream
+=======
+    }
+
+    public function getAiCredential(): ?ApiCredential
+    {
+        $provider = $this->getAiProvider();
+        return ApiCredential::getDefault($provider);
+>>>>>>> Stashed changes
     }
 
     public function getAiCredential(): ?ApiCredential
@@ -32,11 +41,15 @@ class AppSettingService
     public function getAiApiKey(): ?string
     {
         $cred = $this->getAiCredential();
+<<<<<<< Updated upstream
         if ($cred?->key_value) return $cred->key_value;
 
         // Fallback to env
         return config('services.groq.api_key')
             ?? env('GROQ_API_KEY');
+=======
+        return $cred?->key_value ?? config('services.groq.api_key');
+>>>>>>> Stashed changes
     }
 
     public function getAiModel(): string
@@ -50,6 +63,20 @@ class AppSettingService
         $cred = $this->getAiCredential();
         $meta = $cred?->meta;
         return $meta['vision_model'] ?? config('services.groq.vision_model', 'meta-llama/llama-4-scout-17b-16e-instruct');
+<<<<<<< Updated upstream
+=======
+    }
+
+    public function getAiBaseUrl(): string
+    {
+        $cred = $this->getAiCredential();
+        return $cred?->endpoint_url ?? config('services.groq.base_url', 'https://api.groq.com/openai/v1');
+    }
+
+    public function getTelegramToken(): ?string
+    {
+        return config('services.telegram.bot_token');
+>>>>>>> Stashed changes
     }
 
     public function getAiBaseUrl(): string

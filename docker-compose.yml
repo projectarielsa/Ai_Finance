@@ -1,0 +1,20 @@
+services:
+  app-staging:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: finance-ai-app:staging
+    container_name: finance-staging_app
+    restart: always
+    ports:
+      - "8010:80"
+    volumes:
+      - .env:/var/www/html/.env
+      - storage_staging:/var/www/html/storage
+    networks:
+      - shared_network # Hubungkan service ke alias network lokal
+
+networks:
+  shared_network:
+    name: shared   # <--- INI KUNCINYA: Menunjuk ke network 'shared' yang sudah ada di server
+    external: true

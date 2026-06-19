@@ -13,7 +13,11 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'email', 'password', 'phone', 'telegram_id', 'telegram_username',
+<<<<<<< Updated upstream
         'avatar', 'role', 'currency', 'language', 'telegram_notifications',
+=======
+        'avatar', 'role', 'currency', 'language', 'whatsapp_notifications',
+>>>>>>> Stashed changes
         'minimum_balance_warning', 'is_active', 'timezone',
         // Reminder settings
         'daily_reminder_enabled', 'daily_reminder_time',
@@ -116,6 +120,16 @@ class User extends Authenticatable
     public function debts()
     {
         return $this->hasMany(\App\Models\Debt::class);
+    }
+
+    public function hasTelegram(): bool
+    {
+        return !empty($this->telegram_id);
+    }
+
+    public function telegramMessages()
+    {
+        return $this->hasMany(TelegramMessage::class);
     }
 
     public function hasTelegram(): bool
