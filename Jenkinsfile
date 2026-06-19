@@ -33,10 +33,10 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker-compose -f docker-compose.staging.yml build --no-cache app-staging
+                            docker-compose -f docker-compose.yml build --no-cache app-staging
                         '''
                     } else {
-                        sh "docker-compose -f docker-compose.prod.yml build --no-cache app-prod"
+                        sh "docker-compose -f docker-compose.yml build --no-cache app-prod"
                     }
                 }
             }
@@ -48,14 +48,14 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker-compose -f docker-compose.staging.yml up -d
+                            docker-compose -f docker-compose.yml up -d
                             docker exec -t finance-staging_app php artisan migrate --force
                             docker exec -t finance-staging_app php artisan optimize
                         '''
                         echo '✅ Selesai! Lingkungan Staging (finance-staging_app) berhasil diperbarui.'
                     } else {
                         sh '''
-                            docker-compose -f docker-compose.prod.yml up -d
+                            docker-compose -f docker-compose.yml up -d
                             docker exec -t asset_prod_app php artisan migrate --force
                             docker exec -t asset_prod_app php artisan optimize
                         '''
