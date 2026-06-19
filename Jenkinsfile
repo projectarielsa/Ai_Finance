@@ -33,10 +33,11 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker compose -f docker-compose.yml build --no-cache app-staging
+                            # Build langsung menggunakan Docker CLI standar server
+                            docker build --no-cache -t finance-ai-app:staging .
                         '''
                     } else {
-                        sh "docker compose -f docker-compose.yml build --no-cache app-prod"
+                        sh "docker build --no-cache -t finance-ai-app:production ."
                     }
                 }
             }
@@ -48,14 +49,33 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker compose -f docker-compose.yml up -d
+                            
+                            # Hapus container lama jika masih ada/macet
+                            docker rm -f finance-staging_app || true
+                            
+                            # Jalankan container baru menggunakan Docker Run standar (Port 8002)
+                            # Menyambungkan volume storage dan shared network yang dibutuhkan
+                            docker run -d \
+                                --name finance-staging_app \
+                                -p 8002:80 \
+                                -v /srv/apps/finance-staging/.env:/var/www/html/.env \
+                                -v finance-staging_storage_staging:/var/www/html/storage \
+                                --network shared \
+                                finance-ai-app:staging
+                            
+                            # Eksekusi optimasi Laravel
                             docker exec -t finance-staging_app php artisan migrate --force
                             docker exec -t finance-staging_app php artisan optimize
                         '''
                         echo '✅ Selesai! Lingkungan Staging (finance-staging_app) berhasil diperbarui.'
                     } else {
                         sh '''
-                            docker compose -f docker-compose.yml up -d
+                            docker rm -f asset_prod_app || true
+                            docker run -d \
+                                --name asset_prod_app \
+                                -p 8000:80 \
+                                --network shared \
+                                finance-ai-app:production
                             docker exec -t asset_prod_app php artisan migrate --force
                             docker exec -t asset_prod_app php artisan optimize
                         '''
