@@ -39,10 +39,12 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker compose -f docker-compose.staging.yml build --no-cache app-staging
+                            # Ganti menjadi docker-compose (pakai strip)
+                            docker-compose -f docker-compose.staging.yml build --no-cache app-staging
                         '''
                     } else {
-                        sh "docker compose -f docker-compose.prod.yml build --no-cache app-prod"
+                        # Samakan juga untuk blok production
+                        sh "docker-compose -f docker-compose.prod.yml build --no-cache app-prod"
                     }
                 }
             }
@@ -54,18 +56,20 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker compose -f docker-compose.staging.yml up -d
+                            # Ganti menjadi docker-compose (pakai strip)
+                            docker-compose -f docker-compose.staging.yml up -d
+                            
                             docker exec -t finance-staging_app php artisan migrate --force
                             docker exec -t finance-staging_app php artisan optimize
                         '''
-                        echo '✅ Staging Berhasil Diperbarui!'
+                        echo '✅ Selesai! Lingkungan Staging (finance-staging_app) berhasil diperbarui.'
                     } else {
                         sh '''
-                            docker compose -f docker-compose.prod.yml up -d
+                            docker-compose -f docker-compose.prod.yml up -d
                             docker exec -t asset_prod_app php artisan migrate --force
                             docker exec -t asset_prod_app php artisan optimize
                         '''
-                        echo '🚀 Production Berhasil Diperbarui!'
+                        echo '🚀 Selesai! Lingkungan Production (asset_prod_app) berhasil diperbarui.'
                     }
                 }
             }
