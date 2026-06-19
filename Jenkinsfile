@@ -5,19 +5,23 @@ pipeline {
         stage('1. Deteksi Jalur & Sinkronisasi') {
             steps {
                 script {
-                    // Cek apakah nama folder workspace mengandung kata 'staging'
                     if (env.WORKSPACE.toLowerCase().contains('staging')) {
-                        echo '🌿 Workspace STAGING dideteksi. Sinkronisasi ke /srv/apps/finance-staging...'
+                        echo '🌿 WORKSPACE STAGING DIDETEKSI!'
+                        echo 'Menyelaraskan kode ke folder /srv/apps/finance-staging...'
                         sh '''
                             cd /srv/apps/finance-staging
+                            
+                            # TAMBAHKAN BARIS INI untuk menjinakkan keamanan Git
+                            git config --global --add safe.directory /srv/apps/finance-staging
+                            
                             git fetch origin
                             git checkout develop
                             git reset --hard origin/develop
                         '''
                         env.DEPLOY_TARGET = 'staging'
                     } else {
-                        echo '🚀 Workspace PRODUCTION dideteksi. Tetap di tempat...'
-                        // Di production, Jenkins otomatis sudah melakukan checkout ke workspace
+                        echo '🚀 WORKSPACE PRODUCTION DIDETEKSI!'
+                        echo 'Menggunakan Jenkins Workspace utama untuk Production...'
                         env.DEPLOY_TARGET = 'production'
                     }
                 }
