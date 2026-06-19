@@ -11,15 +11,9 @@ pipeline {
                         sh '''
                             cd /srv/apps/finance-staging
                             git config --global --add safe.directory /srv/apps/finance-staging
-                            
-                            # 1. Tarik info branch terbaru
                             git fetch origin
-                            
-                            # 2. PAKSA BUANG semua perubahan lokal atau file untracked yang bikin macet
                             git reset --hard HEAD
                             git clean -fd
-                            
-                            # 3. Pindah ke develop dan timpa dengan kode terbaru dari GitHub
                             git checkout develop
                             git reset --hard origin/develop
                         '''
@@ -39,11 +33,9 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            # Ganti menjadi docker-compose (pakai strip)
                             docker-compose -f docker-compose.staging.yml build --no-cache app-staging
                         '''
                     } else {
-                        # Samakan juga untuk blok production
                         sh "docker-compose -f docker-compose.prod.yml build --no-cache app-prod"
                     }
                 }
@@ -56,9 +48,7 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            # Ganti menjadi docker-compose (pakai strip)
                             docker-compose -f docker-compose.staging.yml up -d
-                            
                             docker exec -t finance-staging_app php artisan migrate --force
                             docker exec -t finance-staging_app php artisan optimize
                         '''
@@ -73,6 +63,15 @@ pipeline {
                     }
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "🎉 Pipeline [${env.DEPLOY_TARGET.toUpperCase()}] berhasil dieksekusi dengan sempurna!"
+        }
+        failure {
+            echo "❌ Pipeline [${env.DEPLOY_TARGET.toUpperCase()}] gagal. Silakan periksa log di atas."
         }
     }
 }
