@@ -10,11 +10,16 @@ pipeline {
                         echo 'Menyelaraskan kode ke folder /srv/apps/finance-staging...'
                         sh '''
                             cd /srv/apps/finance-staging
-                            
-                            # TAMBAHKAN BARIS INI untuk menjinakkan keamanan Git
                             git config --global --add safe.directory /srv/apps/finance-staging
                             
+                            # 1. Tarik info branch terbaru
                             git fetch origin
+                            
+                            # 2. PAKSA BUANG semua perubahan lokal atau file untracked yang bikin macet
+                            git reset --hard HEAD
+                            git clean -fd
+                            
+                            # 3. Pindah ke develop dan timpa dengan kode terbaru dari GitHub
                             git checkout develop
                             git reset --hard origin/develop
                         '''
