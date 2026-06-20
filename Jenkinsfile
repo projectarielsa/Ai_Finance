@@ -33,13 +33,13 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            # Build Staging menggunakan file compose default
-                            docker compose build --no-cache
+                            # Perbaikan: Menggunakan format build tanpa cache yang aman untuk compose
+                            docker compose build --pull --no-cache
                         '''
                     } else {
                         sh '''
-                            # Build Production menggunakan file compose spesifik prod
-                            docker compose -f docker-compose.prod.yml build --no-cache
+                            # Perbaikan untuk Production juga
+                            docker compose -f docker-compose.prod.yml build --pull --no-cache
                         '''
                     }
                 }
