@@ -33,7 +33,6 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            # Menggunakan docker-compose (dengan strip) dan flag --no-cache di akhir
                             docker-compose build --no-cache
                         '''
                     } else {
@@ -52,11 +51,7 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            
-                            # Jalankan Staging menggunakan docker-compose lama
                             docker-compose up -d
-                            
-                            # Eksekusi optimasi Laravel Staging
                             docker exec -t finance-staging_app php artisan migrate --force
                             docker exec -t finance-staging_app php artisan optimize
                         '''
@@ -64,10 +59,7 @@ pipeline {
                     } else {
                         sh '''
                             cd /srv/apps/finance-staging
-                            # Jalankan Production menggunakan docker-compose lama
                             docker-compose -f docker-compose.prod.yml up -d
-                            
-                            # Eksekusi optimasi Laravel Production
                             docker exec -t asset_prod_app php artisan migrate --force
                             docker exec -t asset_prod_app php artisan optimize
                         '''
@@ -76,6 +68,7 @@ pipeline {
                 }
             }
         }
+    }
 
     post {
         success {
