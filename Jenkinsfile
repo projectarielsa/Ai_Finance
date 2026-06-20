@@ -33,13 +33,13 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            # Build menggunakan docker compose modern tanpa flag tambahan di awal
-                            docker compose build
+                            # Menggunakan docker-compose (pakai strip) tanpa flag aneh-aneh yang bikin eror
+                            docker-compose build --no-cache
                         '''
                     } else {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker compose -f docker-compose.prod.yml build
+                            docker-compose -f docker-compose.prod.yml build --no-cache
                         '''
                     }
                 }
@@ -53,9 +53,13 @@ pipeline {
                         sh '''
                             cd /srv/apps/finance-staging
                             
-                            # Menggunakan docker compose modern (spasi) untuk menghindari KeyError Python
-                            docker compose up -d
+                            # KUNCINYA DI SINI: Bersihkan container lama dulu agar docker-compose jadulnya tidak crash
+                            docker-compose down || true
                             
+                            # Jalankan container baru dari kondisi bersih
+                            docker-compose up -d
+                            
+                            # Jalankan perintah Laravel
                             docker exec -t finance-staging_app php artisan migrate --force
                             docker exec -t finance-staging_app php artisan optimize
                         '''
@@ -63,9 +67,14 @@ pipeline {
                     } else {
                         sh '''
                             cd /srv/apps/finance-staging
-                            # Menggunakan docker compose modern untuk Production
-                            docker compose -f docker-compose.prod.yml up -d
                             
+                            # Bersihkan container production lama terlebih dahulu
+                            docker-compose -f docker-compose.prod.yml down || true
+                            
+                            # Jalankan container baru production
+                            docker-compose -f docker-compose.prod.yml up -d
+                            
+                            # Jalankan perintah Laravel di production
                             docker exec -t asset_prod_app php artisan migrate --force
                             docker exec -t asset_prod_app php artisan optimize
                         '''
