@@ -53,14 +53,19 @@ pipeline {
                         sh '''
                             cd /srv/apps/finance-staging
                             
-                            # Jalankan container
+                            # Hapus container lama secara total
                             docker-compose down || true
+                            
+                            # Jalankan container baru
                             docker-compose up -d
                             
-                            # KUNCINYA: Hapus file fisik cache bootstraper Laravel yang nyangkut
+                            # Bersihkan total cache bootstraper Laravel dari dalam container
                             docker exec -t finance-staging_app rm -f bootstrap/cache/services.php bootstrap/cache/packages.php bootstrap/cache/config.php
                             
-                            # Jalankan perintah Laravel (Sekarang dijamin lancar)
+                            # Paksa Laravel membuat ulang autoloader yang bersih tanpa dependency dev
+                            docker exec -t finance-staging_app composer dump-autoload --optimize
+                            
+                            # Jalankan migrasi dan optimasi ulang
                             docker exec -t finance-staging_app php artisan migrate --force
                             docker exec -t finance-staging_app php artisan optimize
                         '''
@@ -71,8 +76,8 @@ pipeline {
                             docker-compose -f docker-compose.prod.yml down || true
                             docker-compose -f docker-compose.prod.yml up -d
                             
-                            # Hapus file fisik cache untuk Production juga
                             docker exec -t asset_prod_app rm -f bootstrap/cache/services.php bootstrap/cache/packages.php bootstrap/cache/config.php
+                            docker exec -t asset_prod_app composer dump-autoload --optimize
                             
                             docker exec -t asset_prod_app php artisan migrate --force
                             docker exec -t asset_prod_app php artisan optimize
