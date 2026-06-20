@@ -57,10 +57,10 @@ pipeline {
                             docker-compose down || true
                             docker-compose up -d
                             
-                            # KUNCINYA DI SINI: Hapus cache compiled lama secara paksa agar autoloader segar kembali
-                            docker exec -t finance-staging_app php artisan clear-compiled || true
+                            # KUNCINYA: Hapus file fisik cache bootstraper Laravel yang nyangkut
+                            docker exec -t finance-staging_app rm -f bootstrap/cache/services.php bootstrap/cache/packages.php bootstrap/cache/config.php
                             
-                            # Jalankan perintah Laravel seperti biasa
+                            # Jalankan perintah Laravel (Sekarang dijamin lancar)
                             docker exec -t finance-staging_app php artisan migrate --force
                             docker exec -t finance-staging_app php artisan optimize
                         '''
@@ -71,8 +71,8 @@ pipeline {
                             docker-compose -f docker-compose.prod.yml down || true
                             docker-compose -f docker-compose.prod.yml up -d
                             
-                            # Tambahkan pengaman cache untuk Production juga
-                            docker exec -t asset_prod_app php artisan clear-compiled || true
+                            # Hapus file fisik cache untuk Production juga
+                            docker exec -t asset_prod_app rm -f bootstrap/cache/services.php bootstrap/cache/packages.php bootstrap/cache/config.php
                             
                             docker exec -t asset_prod_app php artisan migrate --force
                             docker exec -t asset_prod_app php artisan optimize
