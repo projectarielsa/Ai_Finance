@@ -53,13 +53,14 @@ pipeline {
                         sh '''
                             cd /srv/apps/finance-staging
                             
-                            # KUNCINYA DI SINI: Bersihkan container lama dulu agar docker-compose jadulnya tidak crash
+                            # Jalankan container
                             docker-compose down || true
-                            
-                            # Jalankan container baru dari kondisi bersih
                             docker-compose up -d
                             
-                            # Jalankan perintah Laravel
+                            # KUNCINYA DI SINI: Hapus cache compiled lama secara paksa agar autoloader segar kembali
+                            docker exec -t finance-staging_app php artisan clear-compiled || true
+                            
+                            # Jalankan perintah Laravel seperti biasa
                             docker exec -t finance-staging_app php artisan migrate --force
                             docker exec -t finance-staging_app php artisan optimize
                         '''
@@ -67,14 +68,12 @@ pipeline {
                     } else {
                         sh '''
                             cd /srv/apps/finance-staging
-                            
-                            # Bersihkan container production lama terlebih dahulu
                             docker-compose -f docker-compose.prod.yml down || true
-                            
-                            # Jalankan container baru production
                             docker-compose -f docker-compose.prod.yml up -d
                             
-                            # Jalankan perintah Laravel di production
+                            # Tambahkan pengaman cache untuk Production juga
+                            docker exec -t asset_prod_app php artisan clear-compiled || true
+                            
                             docker exec -t asset_prod_app php artisan migrate --force
                             docker exec -t asset_prod_app php artisan optimize
                         '''
