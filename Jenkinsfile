@@ -33,13 +33,13 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            # Perbaikan: Menggunakan format build tanpa cache yang aman untuk compose
-                            docker compose build --pull --no-cache
+                            # Menggunakan docker-compose (dengan strip) dan flag --no-cache di akhir
+                            docker-compose build --no-cache
                         '''
                     } else {
                         sh '''
-                            # Perbaikan untuk Production juga
-                            docker compose -f docker-compose.prod.yml build --pull --no-cache
+                            cd /srv/apps/finance-staging
+                            docker-compose -f docker-compose.prod.yml build --no-cache
                         '''
                     }
                 }
@@ -53,8 +53,8 @@ pipeline {
                         sh '''
                             cd /srv/apps/finance-staging
                             
-                            # Jalankan Staging
-                            docker compose up -d
+                            # Jalankan Staging menggunakan docker-compose lama
+                            docker-compose up -d
                             
                             # Eksekusi optimasi Laravel Staging
                             docker exec -t finance-staging_app php artisan migrate --force
@@ -63,8 +63,9 @@ pipeline {
                         echo '✅ Selesai! Lingkungan Staging (finance-staging_app) berhasil diperbarui.'
                     } else {
                         sh '''
-                            # Jalankan Production menggunakan file compose spesifik prod
-                            docker compose -f docker-compose.prod.yml up -d
+                            cd /srv/apps/finance-staging
+                            # Jalankan Production menggunakan docker-compose lama
+                            docker-compose -f docker-compose.prod.yml up -d
                             
                             # Eksekusi optimasi Laravel Production
                             docker exec -t asset_prod_app php artisan migrate --force
@@ -75,7 +76,6 @@ pipeline {
                 }
             }
         }
-    }
 
     post {
         success {
