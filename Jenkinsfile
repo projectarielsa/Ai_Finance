@@ -33,12 +33,13 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker-compose build --no-cache
+                            # Build menggunakan docker compose modern tanpa flag tambahan di awal
+                            docker compose build
                         '''
                     } else {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker-compose -f docker-compose.prod.yml build --no-cache
+                            docker compose -f docker-compose.prod.yml build
                         '''
                     }
                 }
@@ -51,7 +52,10 @@ pipeline {
                     if (env.DEPLOY_TARGET == 'staging') {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker-compose up -d
+                            
+                            # Menggunakan docker compose modern (spasi) untuk menghindari KeyError Python
+                            docker compose up -d
+                            
                             docker exec -t finance-staging_app php artisan migrate --force
                             docker exec -t finance-staging_app php artisan optimize
                         '''
@@ -59,7 +63,9 @@ pipeline {
                     } else {
                         sh '''
                             cd /srv/apps/finance-staging
-                            docker-compose -f docker-compose.prod.yml up -d
+                            # Menggunakan docker compose modern untuk Production
+                            docker compose -f docker-compose.prod.yml up -d
+                            
                             docker exec -t asset_prod_app php artisan migrate --force
                             docker exec -t asset_prod_app php artisan optimize
                         '''
