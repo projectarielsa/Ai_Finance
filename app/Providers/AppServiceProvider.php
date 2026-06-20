@@ -18,10 +18,6 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(AppSettingService::class);
         $this->app->singleton(GrokAIService::class);
-<<<<<<< Updated upstream
-=======
-        $this->app->singleton(WhatsAppService::class);
->>>>>>> Stashed changes
         $this->app->singleton(TelegramBotService::class);
 
         $this->app->bind(TransactionParserService::class, function ($app) {
