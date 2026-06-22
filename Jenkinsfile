@@ -2,88 +2,49 @@ pipeline {
     agent any
 
     stages {
-        stage('1. Deteksi Jalur & Sinkronisasi') {
+        stage('1. Build Container Layer') {
             steps {
                 script {
-                    if (env.WORKSPACE.toLowerCase().contains('staging')) {
-                        echo '🌿 WORKSPACE STAGING DIDETEKSI!'
-                        echo 'Menyelaraskan kode ke folder /srv/apps/finance-staging...'
-                        sh '''
-                            cd /srv/apps/finance-staging
-                            git config --global --add safe.directory /srv/apps/finance-staging
-                            git fetch origin
-                            git reset --hard HEAD
-                            git clean -fd
-                            git checkout develop
-                            git reset --hard origin/develop
-                        '''
-                        env.DEPLOY_TARGET = 'staging'
-                    } else {
-                        echo '🚀 WORKSPACE PRODUCTION DIDETEKSI!'
-                        echo 'Menggunakan Jenkins Workspace utama untuk Production...'
-                        env.DEPLOY_TARGET = 'production'
-                    }
+                    echo '📦 Membangun ulang Docker Image di dalam Workspace Jenkins...'
+                    sh 'docker-compose build --no-cache'
                 }
             }
         }
 
-        stage('2. Build Container Layer') {
+        stage('2. Deploy & Inject Konfigurasi') {
             steps {
                 script {
-                    if (env.DEPLOY_TARGET == 'staging') {
-                        sh '''
-                            cd /srv/apps/finance-staging
-                            # Menggunakan docker-compose (pakai strip) tanpa flag aneh-aneh yang bikin eror
-                            docker-compose build --no-cache
-                        '''
-                    } else {
-                        sh '''
-                            cd /srv/apps/finance-staging
-                            docker-compose -f docker-compose.prod.yml build --no-cache
-                        '''
-                    }
+                    echo '⚡ Mengambil .env dari folder server & Menyalakan Container...'
+                    sh '''
+                        # 1. KUNCI UTAMA: Hancurkan folder .env palsu sisa build lalu yang dibuat Docker
+                        rm -rf .env || true
+                        
+                        # 2. Salin file .env text asli yang valid dari folder server
+                        cp /srv/apps/finance-staging/.env .env
+                        
+                        # 3. Segarkan state Docker Compose dan bersihkan kontainer yatim (orphans)
+                        docker-compose down --remove-orphans || true
+                        
+                        # 4. Angkat kontainer Production utama
+                        docker-compose up -d
+                    '''
                 }
             }
         }
 
-        stage('3. Deploy & Optimasi Laravel') {
+        stage('3. Optimasi Laravel') {
             steps {
                 script {
-                    if (env.DEPLOY_TARGET == 'staging') {
-                        sh '''
-                            cd /srv/apps/finance-staging
-                            
-                            # Hapus container lama secara total
-                            docker-compose down || true
-                            
-                            # Jalankan container baru
-                            docker-compose up -d
-                            
-                            # Bersihkan total cache bootstraper Laravel dari dalam container
-                            docker exec -t finance-staging_app rm -f bootstrap/cache/services.php bootstrap/cache/packages.php bootstrap/cache/config.php
-                            
-                            # Paksa Laravel membuat ulang autoloader yang bersih tanpa dependency dev
-                            docker exec -t finance-staging_app composer dump-autoload --optimize
-                            
-                            # Jalankan migrasi dan optimasi ulang
-                            docker exec -t finance-staging_app php artisan migrate --force
-                            docker exec -t finance-staging_app php artisan optimize
-                        '''
-                        echo '✅ Selesai! Lingkungan Staging (finance-staging_app) berhasil diperbarui.'
-                    } else {
-                        sh '''
-                            cd /srv/apps/finance-staging
-                            docker-compose -f docker-compose.prod.yml down || true
-                            docker-compose -f docker-compose.prod.yml up -d
-                            
-                            docker exec -t asset_prod_app rm -f bootstrap/cache/services.php bootstrap/cache/packages.php bootstrap/cache/config.php
-                            docker exec -t asset_prod_app composer dump-autoload --optimize
-                            
-                            docker exec -t asset_prod_app php artisan migrate --force
-                            docker exec -t asset_prod_app php artisan optimize
-                        '''
-                        echo '🚀 Selesai! Lingkungan Production (asset_prod_app) berhasil diperbarui.'
-                    }
+                    echo '⚙️ Menjalankan Migrasi & Cache Bersih...'
+                    sh '''
+                        # Bersihkan sisa manifest cache di dalam kontainer jika ada
+                        docker exec -t finance_prod_app rm -f bootstrap/cache/services.php bootstrap/cache/packages.php bootstrap/cache/config.php || true
+                        
+                        # Regenerasi autoloader paket vendor dan cache production Laravel
+                        docker exec -t finance_prod_app composer dump-autoload --optimize
+                        docker exec -t finance_prod_app php artisan migrate --force
+                        docker exec -t finance_prod_app php artisan optimize
+                    '''
                 }
             }
         }
@@ -91,10 +52,10 @@ pipeline {
 
     post {
         success {
-            echo "🎉 Pipeline [${env.DEPLOY_TARGET.toUpperCase()}] berhasil dieksekusi dengan sempurna!"
+            echo "🎉 Pipeline [PRODUCTION VIA WORKSPACE] sukses besar!"
         }
         failure {
-            echo "❌ Pipeline [${env.DEPLOY_TARGET.toUpperCase()}] gagal. Silakan periksa log di atas."
+            echo "❌ Pipeline [PRODUCTION VIA WORKSPACE] gagal."
         }
     }
 }
