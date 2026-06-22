@@ -37,11 +37,16 @@ pipeline {
                 script {
                     echo '⚙️ Menjalankan Migrasi & Cache Bersih...'
                     sh '''
-                        # Bersihkan sisa manifest cache di dalam kontainer jika ada
-                        docker exec -t finance_prod_app rm -f bootstrap/cache/services.php bootstrap/cache/packages.php bootstrap/cache/config.php || true
+                        # 1. Hapus paksa file cache bootstrap yang tersangkut di dalam kontainer
+                        docker exec -t finance_prod_app rm -rf bootstrap/cache/services.php bootstrap/cache/packages.php bootstrap/cache/config.php
                         
-                        # Regenerasi autoloader paket vendor dan cache production Laravel
-                        docker exec -t finance_prod_app composer dump-autoload --optimize
+                        # 2. Jalankan dump-autoload DENGAN flag --no-scripts agar tidak memicu discover otomatis yang rusak
+                        docker exec -t finance_prod_app composer dump-autoload --optimize --no-scripts
+                        
+                        # 3. Sekarang jalankan discover secara manual dalam kondisi bootstrap yang sudah bersih total
+                        docker exec -t finance_prod_app php artisan package:discover --ansi
+                        
+                        # 4. Jalankan migrasi database dan optimasi cache production
                         docker exec -t finance_prod_app php artisan migrate --force
                         docker exec -t finance_prod_app php artisan optimize
                     '''
