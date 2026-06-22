@@ -10,9 +10,10 @@ services:
     restart: always
     ports:
       - "8010:80"
+    # KUNCI PERBAIKAN 1: Suntikkan .env langsung sebagai environment sistem, bukan lewat volume mount
+    env_file:
+      - .env
     volumes:
-      # Menggunakan .env lokal di dalam workspace saat itu
-      - ./.env:/var/www/html/.env
       - storage_prod:/var/www/html/storage
     networks:
       - shared_network
