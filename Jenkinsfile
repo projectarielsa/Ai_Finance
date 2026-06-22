@@ -16,11 +16,16 @@ pipeline {
                 script {
                     echo '⚡ Mengambil .env dari folder server & Menyalakan Container...'
                     sh '''
-                        # Ambil file .env dari folder lama kamu ke workspace saat ini
+                        # 1. KUNCI UTAMA: Hancurkan folder .env palsu sisa build lalu yang dibuat Docker
+                        rm -rf .env || true
+                        
+                        # 2. Salin file .env text asli yang valid dari folder server
                         cp /srv/apps/finance-staging/.env .env
                         
-                        # Matikan container lama & nyalakan yang baru
-                        docker-compose down || true
+                        # 3. Segarkan state Docker Compose dan bersihkan kontainer yatim (orphans)
+                        docker-compose down --remove-orphans || true
+                        
+                        # 4. Angkat kontainer Production utama
                         docker-compose up -d
                     '''
                 }
@@ -32,10 +37,10 @@ pipeline {
                 script {
                     echo '⚙️ Menjalankan Migrasi & Cache Bersih...'
                     sh '''
-                        # Bersihkan sisa cache di dalam container jika ada
+                        # Bersihkan sisa manifest cache di dalam kontainer jika ada
                         docker exec -t finance_prod_app rm -f bootstrap/cache/services.php bootstrap/cache/packages.php bootstrap/cache/config.php || true
                         
-                        # Regenerasi autoloader dan optimasi
+                        # Regenerasi autoloader paket vendor dan cache production Laravel
                         docker exec -t finance_prod_app composer dump-autoload --optimize
                         docker exec -t finance_prod_app php artisan migrate --force
                         docker exec -t finance_prod_app php artisan optimize
