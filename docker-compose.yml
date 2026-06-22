@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: finance-ai-app:latest
+    container_name: finance_prod_app
+    restart: always
+    ports:
+      - "8010:80"
+    volumes:
+      # Menggunakan .env lokal di dalam workspace saat itu
+      - ./.env:/var/www/html/.env
+      - storage_prod:/var/www/html/storage
+    networks:
+      - shared_network
+
+networks:
+  shared_network:
+    name: shared
+    external: true
+
+volumes:
+  storage_prod:
